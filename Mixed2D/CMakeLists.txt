@@ -3,7 +3,7 @@ file(GLOB sources *.cpp)
 
 set(main Main.cpp ${headers})
 
-add_executable(MixedElasticity2D ${main})
+add_executable(Mixed2D ${main})
 
-target_link_libraries(MixedElasticity2D pz)
+target_link_libraries(Mixed2D pz)
 
