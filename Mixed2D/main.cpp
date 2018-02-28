@@ -179,9 +179,9 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    EConfig conf = EAxiSymmetric;
+    EConfig conf = EThiago;
     int maxrefp = 1;
-    int maxrefh = 7;
+    int maxrefh = 8;
     bool plotting = false;
     
     
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
     //Dados do problema:
     switch (conf) {
         case EThiago:
-            TElasticityExample1::fProblemType = TElasticityExample1::EPoly;
+            TElasticityExample1::fProblemType = TElasticityExample1::EThiago;
             TElasticityExample1::fStressState   = TElasticityExample1::EPlaneStrain;
             TElasticityExample1::fElast = 206.815026;
             TElasticityExample1::fNu = 0.30400395;
@@ -301,11 +301,15 @@ int main(int argc, char *argv[])
 #endif
             
             //Resolvendo o Sistema:
-            int numthreads = 0;
+            int numthreads = 8;
             
             bool optimizeBandwidth = true;
             TPZAnalysis an(cmesh_m, optimizeBandwidth); //Cria objeto de análise que gerenciará a analise do problema
+#ifdef USING_MKL
+            TPZSymetricSpStructMatrix matskl(cmesh_m);
+#else
             TPZSkylineStructMatrix matskl(cmesh_m); //caso nao simetrico ***
+#endif
             matskl.SetNumThreads(numthreads);
             an.SetStructuralMatrix(matskl);
             TPZStepSolver<STATE> step;
@@ -454,8 +458,6 @@ int main(int argc, char *argv[])
 TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double y0)
 {
     
-    int i,j;
-    long id, index;
     
     
     //Criando malha geométrica, nós e elementos.
@@ -467,36 +469,38 @@ TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double 
     //Vetor auxiliar para armazenar coordenadas:
     
     TPZVec <REAL> coord (3,0.);
-    //    TPZVec <REAL> newcoord(3,0.);
-    //    TPZVec <REAL> gcoord1(3,0.);
-    //    TPZVec <REAL> gcoord2(3,0.);
-    //    double theta=M_PI/4;
-    //    gcoord1[0]=-1;
-    //    gcoord2[0]=hx-1;
-    //    gcoord1[1]=-1.;
-    //    gcoord2[1]=hy-1;
-    //    gcoord1[2]=0-1;
-    //   gcoord2[2]=0-1;
+    
+    TPZVec <REAL> gcoord1(3,0.);
+    TPZVec <REAL> gcoord2(3,0.);
+    gcoord1[0]=x0;
+    gcoord2[0]=hx+x0;
+    gcoord1[1]=y0;
+    gcoord2[1]=hy+y0;
+    gcoord1[2]=0;
+    gcoord2[2]=0;
     //Inicialização dos nós:
     
-    // TPZManVector<int> nelem(2,1);
-    //  nelem[0]= nx;
-    // nelem[1] = ny;
+    TPZManVector<int> nelem(2,1);
+    nelem[0] = nx-1;
+    nelem[1] = ny-1;
     
-    // TPZGenGrid gengrid(nelem,gcoord1,gcoord2);
+    TPZGenGrid gengrid(nelem,gcoord1,gcoord2);
     
-    //    gengrid.SetElementType(ETriangle);
+    gengrid.SetElementType(ETriangle);
     
     REAL distort = 0.7;
     //    gengrid.SetDistortion(distort);
     
-    //gengrid.Read(gmesh);
-    //gengrid.SetBC(gmesh,4,matBCbott);
-    //gengrid.SetBC(gmesh,5,matBCright);
-    //gengrid.SetBC(gmesh,6,matBCtop);
-    //gengrid.SetBC(gmesh,7,matBCleft);
-    
-    
+    gengrid.Read(gmesh,matID);
+    gengrid.SetBC(gmesh,4,matBCbott);
+    gengrid.SetBC(gmesh,5,matBCright);
+    gengrid.SetBC(gmesh,6,matBCtop);
+    gengrid.SetBC(gmesh,7,matBCleft);
+
+    gmesh->BuildConnectivity();
+    /*
+     int i,j;
+     long id, index;
     for(i = 0; i < ny; i++){
         for(j = 0; j < nx; j++){
             id = i*nx + j;
@@ -566,6 +570,7 @@ TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double 
             }
         }
     }
+    */
     
     {
         TPZCheckGeom check(gmesh);
