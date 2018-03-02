@@ -95,7 +95,7 @@ static LoggerPtr logger(Logger::getLogger("pz.elasticity"));
  * @param nel numero de elementos
  * @param elsize tamanho dos elementos
  */
-TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, double y0);
+TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, double y0, bool trianglemesh);
 
 /**
  * @brief Funcao para criar a malha computacional da velocidade a ser simulado
@@ -163,12 +163,13 @@ REAL AxiArea(TPZGeoMesh * gmesh, std::set<int> matids);
 // integrate r sig.n on the bottom
 STATE IntegrateBottom(TPZCompMesh *cmesh, int matid);
 
-enum EConfig {EThiago, EAxiSymmetric, EThiagoPlus};
+enum EConfig {EThiago, EAxiSymmetric, EThiagoPlus, EAxiSymmetricPlus};
 
-std::string ConfigRootname[3] = {
+std::string ConfigRootname[4] = {
     "Mixed",
     "Mixed_AxiSymmetric",
-    "MixedPlus"
+    "MixedPlus",
+    "Mixed_AxiSymmetricPlus"
 };
 
 int main(int argc, char *argv[])
@@ -179,10 +180,11 @@ int main(int argc, char *argv[])
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    EConfig conf = EThiago;
-    int maxrefp = 1;
-    int maxrefh = 8;
+    EConfig conf = EAxiSymmetricPlus;
+    int maxrefp = 3;
+    int maxrefh = 7;
     bool plotting = false;
+    bool trianglemesh = false;
     
     
     std::string rootname;
@@ -194,28 +196,6 @@ int main(int argc, char *argv[])
     //Dados do problema:
     switch (conf) {
         case EThiago:
-            TElasticityExample1::fProblemType = TElasticityExample1::EThiago;
-            TElasticityExample1::fStressState   = TElasticityExample1::EPlaneStrain;
-            TElasticityExample1::fElast = 206.815026;
-            TElasticityExample1::fNu = 0.30400395;
-            hx = 2;
-            hy = 2;
-            x0 = -1;
-            y0 = -1;
-            
-            rootname = "../" + ConfigRootname[0] + "_Poly";
-            break;
-        case EAxiSymmetric:
-            TElasticityExample1::fProblemType = TElasticityExample1::Etest1;
-            TElasticityExample1::fStressState = TElasticityExample1::EAxiSymmetric;
-            TElasticityExample1::fElast = 100.;
-            TElasticityExample1::fNu = 0.;
-            hx = 2;
-            hy = 2;
-            x0 = 1;
-            y0 = -1;
-            rootname = "../" + ConfigRootname[1] + "_Test1";
-            break;
         case EThiagoPlus:
             TElasticityExample1::fProblemType = TElasticityExample1::EThiago;
             TElasticityExample1::fStressState   = TElasticityExample1::EPlaneStrain;
@@ -225,7 +205,20 @@ int main(int argc, char *argv[])
             hy = 2;
             x0 = -1;
             y0 = -1;
-            rootname = "../" + ConfigRootname[2]+"_Thiago";
+            
+            rootname = "../" + ConfigRootname[conf] + "_Thiago";
+            break;
+        case EAxiSymmetric:
+        case EAxiSymmetricPlus:
+            TElasticityExample1::fProblemType = TElasticityExample1::Etest1;
+            TElasticityExample1::fStressState = TElasticityExample1::EAxiSymmetric;
+            TElasticityExample1::fElast = 100.;
+            TElasticityExample1::fNu = 0.;
+            hx = 2;
+            hy = 2;
+            x0 = 1;
+            y0 = -1;
+            rootname = "../" + ConfigRootname[conf] + "_Test1";
             break;
         default:
             DebugStop();
@@ -239,18 +232,20 @@ int main(int argc, char *argv[])
     TElasticityExample1::Sigma(x,sigma);
     TElasticityExample1::Force(x,force);
     
-    for (int iref = 0; iref < maxrefh; iref++) {
-        for (int pref = 0; pref < maxrefp; pref++)
+    for (int pref = 0; pref < maxrefp; pref++)
+    {
+        for (int iref = 0; iref < maxrefh; iref++)
         {
+            std::cout << "********* " << "Number of h refinements " << iref << " porder " << pref+1 << " *********" <<std::endl;
             int h_level = 1 << iref;
             int nelx=h_level, nely=h_level; //Número de elementos em x e y
             int nx=nelx+1 ,ny=nely+1; //Número de nos em x  y
             int RibpOrder = pref+1; //Ordem polinomial de aproximação
             int InternalpOrder = pref+1;
-            if (conf == EThiagoPlus) {
+            if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
                 InternalpOrder = pref+2;
             }
-            TPZGeoMesh *gmesh = CreateGMesh(nx, ny, hx, hy, x0, y0); //Função para criar a malha geometrica
+            TPZGeoMesh *gmesh = CreateGMesh(nx, ny, hx, hy, x0, y0, trianglemesh); //Função para criar a malha geometrica
             
 #ifdef PZDEBUG
             std::ofstream fileg("MalhaGeo.txt"); //Impressão da malha geométrica (formato txt)
@@ -401,11 +396,29 @@ int main(int argc, char *argv[])
             //    std::cout << "Computing Error " << std::endl;
             
             std::stringstream sout;
-            sout << rootname << "Error.nb";
+            sout  << rootname;
+            if (trianglemesh) {
+                sout << "_triangle";
+            }
+            else
+            {
+                sout << "_quad";
+            }
+            sout << "_Error.nb";
             ofstream ErroOut(sout.str(),std::ios::app);
-            ErroOut << "(* Number of elements " << h_level << "*)" << std::endl;
-            ErroOut << "(* Number of Condensed equations " << cmesh_m->NEquations() << "*)" << std::endl;
-            ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << "*)" << std::endl;
+            ErroOut << "(* Type of simulation " << rootname << " *)\n";
+            ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
+            ErroOut << "(* Type of Element ";
+            if (trianglemesh) {
+                ErroOut << "triangular ";
+            }
+            else
+            {
+                ErroOut << "quadrilateral ";
+            }
+            ErroOut << " *)\n";
+            ErroOut << "(* Number of Condensed equations " << cmesh_m->NEquations() << " *)" << std::endl;
+            ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(example.Exact());
             an.PostProcessError(Errors,ErroOut);
@@ -420,7 +433,7 @@ int main(int argc, char *argv[])
             for (int i=0; i<Errors.size(); i++) {
                 output[5+i] = Errors[i];
             }
-            ErroOut << "Error[[" << iref+1 << "," << pref+1 << "]] = {" << output << "};";
+            ErroOut << "Error[[" << iref+1 << "," << pref+1 << "]] = {" << output << "};\n";
             
             std::cout << "Errors = " << Errors << std::endl;
             
@@ -455,7 +468,7 @@ int main(int argc, char *argv[])
 }
 
 
-TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double y0)
+TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double y0, bool trianglemesh)
 {
     
     
@@ -486,7 +499,10 @@ TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double 
     
     TPZGenGrid gengrid(nelem,gcoord1,gcoord2);
     
-    gengrid.SetElementType(ETriangle);
+    if(trianglemesh)
+    {
+        gengrid.SetElementType(ETriangle);
+    }
     
     REAL distort = 0.7;
     //    gengrid.SetDistortion(distort);
