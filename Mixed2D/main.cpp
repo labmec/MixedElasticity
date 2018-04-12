@@ -84,10 +84,10 @@
 static LoggerPtr logger(Logger::getLogger("pz.elasticity"));
 #endif
 
-//------------------Problema Elasticidade------------------------
+//------------------Elasticity Problem------------------------
 
 enum EElementType {
-    ETriangular, ESquare, ETrapezoidal
+    ETriangular = 0, ESquare = 1, ETrapezoidal = 2
 };
 
 /**
@@ -165,7 +165,7 @@ REAL AxiArea(TPZGeoMesh * gmesh, std::set<int> matids);
 STATE IntegrateBottom(TPZCompMesh *cmesh, int matid);
 
 enum EConfig {
-    EThiago, EAxiSymmetric, EThiagoPlus, EAxiSymmetricPlus
+    EThiago = 0, EAxiSymmetric = 1, EThiagoPlus = 2, EAxiSymmetricPlus = 3
 };
 
 std::string ConfigRootname[4] = {
@@ -176,9 +176,8 @@ std::string ConfigRootname[4] = {
 };
 
 int main(int argc, char *argv[]) {
-
     TPZMaterial::gBigNumber = 1.e16;
-    
+        
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
@@ -187,6 +186,19 @@ int main(int argc, char *argv[]) {
     int n_ref_h = 7;
     bool plotting = false;
     EElementType elementType = ETrapezoidal;
+    
+    switch (argc){
+        case 6:
+            elementType = EElementType(atoi(argv[5]));
+        case 5:
+            plotting = atoi(argv[4]);
+        case 4:
+            n_ref_h = atoi(argv[3]);
+        case 3:
+            n_ref_p = atoi(argv[2]);
+        case 2:
+            conf = EConfig(atoi(argv[1]));
+    };
 
     std::string rootname;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
@@ -206,7 +218,7 @@ int main(int argc, char *argv[]) {
             x0 = 0;
             y0 = 0;
 
-            rootname = "../" + ConfigRootname[conf] + "_Thiago";
+            rootname = ConfigRootname[conf] + "_Thiago";
             break;
         case EAxiSymmetric:
         case EAxiSymmetricPlus:
@@ -218,7 +230,7 @@ int main(int argc, char *argv[]) {
             hy = 2;
             x0 = 1;
             y0 = -1;
-            rootname = "../" + ConfigRootname[conf] + "_Test1";
+            rootname = ConfigRootname[conf] + "_Test1";
             break;
         default:
             DebugStop();
@@ -289,7 +301,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            int numthreads = 0;
+            int numthreads = 8;
 
             bool optimizeBandwidth = true;
             TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
