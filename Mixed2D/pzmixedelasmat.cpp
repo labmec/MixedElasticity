@@ -219,17 +219,6 @@ void TPZMixedElasticityMaterial::FromVoigt(TPZVec<STATE> &Svoigt, TPZFMatrix<STA
 }
 
 void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
-#ifdef PZDEBUG
-    //    //2 = 1 Vel space + 1 Press space
-    //    int nref =  datavec.size();
-    //    if (nref != 2 ) {
-    //        std::cout << " Erro. The size of the datavec is different from 2 \n";
-    //        DebugStop();
-    //    }
-#endif
-
-    //    const int vindex = this->VIndex();
-
     if (datavec[0].fVecShapeIndex.size() == 0) {
         FillVecShapeIndex(datavec[0]);
     }
@@ -239,7 +228,7 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
     STATE g = 9.81; //itapopo
     STATE force = rhoi*g;
     REAL R = datavec[0].x[0];
-    // Setting the phis
+    // Setting the phi's
     // E
     TPZFMatrix<REAL> &phiS = datavec[0].phi;
     TPZFMatrix<REAL> &dphiS = datavec[0].dphix;

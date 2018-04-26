@@ -22,9 +22,6 @@ ELSE()
 	find_package( PZ REQUIRED )
 ENDIF (WIN32)
 
-
-include_directories(${PZ_INCLUDE_DIRS})
-
 IF(APPLE)
    # Mac OS X specific code
    add_definitions(-DMACOSX)

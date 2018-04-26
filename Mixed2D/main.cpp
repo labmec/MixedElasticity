@@ -152,6 +152,7 @@ void Error(TPZCompMesh *hdivmesh, std::ostream &out, int p, int ndiv);
 
 const int dim = 2; // Dimension of the problem
 const int matID = 1; // Material of the volumetric element
+const int matLagrange = -10; // Material of the Lagrange multipliers
 const int matBCbott = -1, matBCtop = -2, matBCleft = -3, matBCright = -4; // Materials of the boundary conditions
 const int dirichlet = 0, neumann = 1, mixed = 2, dirichletvar = 4, pointtype = 5; // Boundary conditions of the problem ->default: Dirichlet on left and right
 
@@ -175,308 +176,87 @@ std::string ConfigRootname[4] = {
     "Mixed_AxiSymmetricPlus"
 };
 
-int main(int argc, char *argv[]) {
-    TPZMaterial::gBigNumber = 1.e16;
-        
-#ifdef LOG4CXX
-    InitializePZLOG();
-#endif
-    EConfig conf = EThiago;
-    int n_ref_p = 3;
-    int n_ref_h = 7;
-    bool plotting = false;
-    EElementType elementType = ETrapezoidal;
-    
-    switch (argc){
-        case 6:
-            elementType = EElementType(atoi(argv[5]));
-        case 5:
-            plotting = atoi(argv[4]);
-        case 4:
-            n_ref_h = atoi(argv[3]);
-        case 3:
-            n_ref_p = atoi(argv[2]);
-        case 2:
-            conf = EConfig(atoi(argv[1]));
-    };
 
-    std::string rootname;
-    double hx = 2, hy = 2; //Dimensões em x e y do domínio
-    double x0 = -1;
-    double y0 = -1;
 
-    //Problem data:
-    switch (conf) {
-        case EThiago:
-        case EThiagoPlus:
-            TElasticityExample1::fProblemType = TElasticityExample1::EThiago;
-            TElasticityExample1::fStressState = TElasticityExample1::EPlaneStrain;
-            TElasticityExample1::fElast = 206.8150271873455;
-            TElasticityExample1::fNu = 0.3040039545229857;
-            hx = 1;
-            hy = 1;
-            x0 = 0;
-            y0 = 0;
 
-            rootname = ConfigRootname[conf] + "_Thiago";
-            break;
-        case EAxiSymmetric:
-        case EAxiSymmetricPlus:
-            TElasticityExample1::fProblemType = TElasticityExample1::Etest1;
-            TElasticityExample1::fStressState = TElasticityExample1::EAxiSymmetric;
-            TElasticityExample1::fElast = 100.;
-            TElasticityExample1::fNu = 0.;
-            hx = 2;
-            hy = 2;
-            x0 = 1;
-            y0 = -1;
-            rootname = ConfigRootname[conf] + "_Test1";
-            break;
-        default:
-            DebugStop();
-            break;
-    }
-//    TPZManVector<STATE, 2> force(2);
-//    TPZFNMatrix<4, STATE> sigma(2, 2);
-//    TPZManVector<REAL, 3> x(3, 0.);
-//    x[0] = x0 + hx / 2.;
-//    x[1] = y0 + hy / 2.;
-//    TElasticityExample1::Sigma(x, sigma);
-//    TElasticityExample1::Force(x, force);
+//void AddMultiphysicsInterfaces(TPZCompMesh &cmesh, int matfrom, int mattarget) {
+//    TPZGeoMesh *gmesh = cmesh.Reference();
+//    int64_t nel = gmesh->NElements();
+//    for (int64_t el = 0; el < nel; el++) {
+//        TPZGeoEl *gel = gmesh->Element(el);
+//        if (gel->MaterialId() != matfrom) {
+//            continue;
+//        }
+//
+//        int nsides = gel->NSides();
+//
+//        TPZGeoElSide gelside(gel, nsides - 1);
+//        TPZStack<TPZCompElSide> celstack;
+//        gelside.EqualLevelCompElementList(celstack, 0, 0);
+//        if (celstack.size() != 2) {
+//            DebugStop();
+//        }
+//        gel->SetMaterialId(mattarget);
+//        int64_t index;
+//        new TPZMultiphysicsInterfaceElement(cmesh, gel, index, celstack[1], celstack[0]);
+//    }
+//}
 
-    for (unsigned int pref = 0; pref < n_ref_p; ++pref) {
-        for (unsigned int href = 1; href < n_ref_h; ++href) {
-            unsigned int h_level = 1 << href;
-            unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
-            std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
-            unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
-            unsigned int RibpOrder = pref + 1; //Polynomial order of the approximation
-            int InternalpOrder = pref + 1;
-            if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
-                InternalpOrder = pref + 2;
-            }
-            TPZGeoMesh *gmesh = CreateGMesh(nx, ny, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+void AddMultiphysicsInterfaces(TPZCompMesh &cmesh) {
+    TPZGeoMesh *gmesh = cmesh.Reference();
+    std::set<int> velmatid;
+    velmatid.insert(matLagrange);
+    velmatid.insert(matBCtop);
+    velmatid.insert(matBCbott);
+    velmatid.insert(matBCleft);
+    velmatid.insert(matBCright);
 
-#ifdef PZDEBUG
-            std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
-            std::ofstream filegvtk("MalhaGeo.vtk"); //Prints the geometric mesh in vtk format
-            gmesh->Print(fileg);
-            TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
-#endif
-            //Creating computational mesh:
-            TPZCompMesh *cmesh_S = CMesh_S(gmesh, RibpOrder); //Creates the computational mesh for the stress field
-            ChangeInternalOrder(cmesh_S, InternalpOrder);
-            TPZCompMesh *cmesh_U = CMesh_U(gmesh, InternalpOrder); //Creates the computational mesh for the displacement field
-            TPZCompMesh *cmesh_P = CMesh_P(gmesh, RibpOrder); //Creates the computational mesh for the rotation field
-            //TPZCompMesh *cmesh_m = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
-            TPZCompMesh *cmesh_m = CMesh_m(gmesh, InternalpOrder);
-            //TPZCompMesh *cmesh_m = CMesh_AxiS(gmesh, InternalpOrder,  Example);
-#ifdef PZDEBUG
-            {
-                std::ofstream filecS("MalhaC_S.txt"); //Prints the stress computational mesh in txt format
-                std::ofstream filecU("MalhaC_U.txt"); //Prints the displacement computational mesh in txt format
-                std::ofstream filecP("MalhaC_P.txt"); //Prints the rotation computational mesh in txt format
-                cmesh_S->Print(filecS);
-                cmesh_U->Print(filecU);
-                cmesh_P->Print(filecP);
-            }
-#endif
+    // volumetric element variables to be exported to the interface: stress tensor
+    TPZManVector<int64_t, 4> LeftElIndices(4);
+    LeftElIndices[0] = 0;
+    LeftElIndices[1] = 1;
+    LeftElIndices[2] = 2;
+    LeftElIndices[3] = 3;
+    // 1-D element variables to be exported to the interface: Lagrange multipliers
+    TPZManVector<int64_t, 2> RightElIndices(2);
+    RightElIndices[0] = 0;
+    RightElIndices[1] = 1;
 
-            TPZManVector<TPZCompMesh*, 3> meshvector(3);
-            meshvector[0] = cmesh_S;
-            meshvector[1] = cmesh_U;
-            meshvector[2] = cmesh_P;
-            TPZBuildMultiphysicsMesh::AddElements(meshvector, cmesh_m);
-            TPZBuildMultiphysicsMesh::AddConnects(meshvector, cmesh_m);
-            TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector, cmesh_m);
-            cmesh_m->LoadReferences();
-            CreateCondensedElements(cmesh_m);
+    int64_t nel = gmesh->NElements();
+    for (int64_t el = 0; el < nel; el++) {
+        TPZGeoEl *gel = gmesh->Element(el);
+        if (!gel) {
+            continue;
+        }
+        int matid = gel->MaterialId();
+        if (velmatid.find(matid) != velmatid.end()) {
+            int nsides = gel->NSides();
+            TPZGeoElSide gelside(gel, nsides - 1);
+            TPZGeoElSide neighbour = gelside.Neighbour();
+            while (neighbour != gelside) {
 
-#ifdef PZDEBUG
-            std::ofstream fileg1("MalhaGeo2.txt");
-            gmesh->Print(fileg1); //Prints the geometric mesh in txt format
-
-            std::ofstream filecm("MalhaC_m.txt");
-            cmesh_m->Print(filecm); //Prints the multi-physics computational mesh in txt format
-#endif
-
-            //Solving the system:
-            int numthreads = 8;
-
-            bool optimizeBandwidth = true;
-            TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-#ifdef USING_MKL
-            TPZSymetricSpStructMatrix matskl(cmesh_m);
-#else
-            TPZSkylineStructMatrix matskl(cmesh_m); // asymmetric case ***
-#endif
-            matskl.SetNumThreads(numthreads);
-            an.SetStructuralMatrix(matskl);
-            TPZStepSolver<STATE> step;
-            step.SetDirect(ELDLt);
-            an.SetSolver(step);
-
-            //  std::cout << "Assemble matrix with NDoF = " << cmesh_m->NEquations() << std::endl;
-            an.Assemble(); //Assembles the global stiffness matrix (and load vector)
-
-            TPZManVector<REAL, 3> Errors;
-            TElasticityExample1 example;
-            an.SetExact(example.Exact());
-            //            an.PostProcessError(Errors,std::cout);
-
-#ifdef PZDEBUG
-            //Imprimir Matriz de rigidez Global:
-            {
-                std::ofstream filestiff("stiffness.nb");
-                an.Solver().Matrix()->Print("K1 = ", filestiff, EMathematicaInput);
-
-                std::ofstream filerhs("rhs.nb");
-                an.Rhs().Print("R = ", filerhs, EMathematicaInput);
-            }
-#endif
-            /*
-             REAL sumrhs = 0.;
-             TPZFMatrix<STATE> &rhs = an.Rhs();
-             for(int64_t i=0; i< rhs.Rows(); i++)
-             {
-             sumrhs += rhs(i,0);
-             }
-             std::cout << " sumrhs "  << sumrhs << std::endl;
-             std::cout << "Solving Matrix " << std::endl;
-             */
-            an.Solve();
-
-#ifdef PZDEBUG
-            {
-                std::ofstream file("file.txt");
-                an.Solution().Print("sol=", file, EMathematicaInput);
-
-            }
-#endif
-            TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(meshvector, cmesh_m);
-
-            if (plotting) {
-                std::string plotfile;
-                {
-                    std::stringstream sout;
-                    sout << rootname << ".vtk";
-                    plotfile = sout.str();
+                if (neighbour.Element()->Dimension() == 2 && gelside.Element()->MaterialId() == matLagrange) {
+                    // create an interface element
+                    TPZCompElSide celside = gelside.Reference();
+                    TPZCompElSide celneigh = neighbour.Reference();
+                    if (!celside || !celneigh) {
+                        DebugStop();
+                    }
+                    std::cout << "Created an element between volumetric element " << neighbour.Element()->Index() <<
+                            " side " << neighbour.Side() <<
+                            " and interface element " << gelside.Element()->Index() << std::endl;
+                    TPZGeoElBC gelbc(gelside, matID);
+                    int64_t index;
+                    TPZMultiphysicsInterfaceElement *intf = new TPZMultiphysicsInterfaceElement(cmesh, gelbc.CreatedElement(), index, celneigh, celside);
+                    intf->SetLeftRightElementIndices(LeftElIndices, RightElIndices);
                 }
-                TPZStack<std::string> scalnames, vecnames;
-                scalnames.Push("SigmaX");
-                scalnames.Push("SigmaY");
-                scalnames.Push("TauXY");
-                vecnames.Push("Flux");
-                vecnames.Push("displacement");
-                vecnames.Push("Stress");
-                int count = href * n_ref_p + pref;
-                an.SetStep(count);
-                an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
-                an.PostProcess(2);
+                neighbour = neighbour.Neighbour();
             }
-#ifdef PZDEBUG
-            //Imprimindo vetor solução:
-            {
-                TPZFMatrix<STATE> solucao = cmesh_m->Solution(); //Pegando o vetor de solução, alphaj
-                std::ofstream solout("sol.nb");
-                solucao.Print("Sol", solout, EMathematicaInput); //Imprime na formatação do Mathematica
-
-                std::ofstream fileAlpha("alpha.nb");
-                an.Solution().Print("Alpha = ", fileAlpha, EMathematicaInput);
-            }
-#endif
-
-            //   matids.clear();
-            //   matids.insert(-1);
-            //   TPZManVector<STATE,3> result;
-            //  result = cmesh_m->Integrate("state",matids);
-            //  std::cout << "Sigma Y"  << result << std::endl;
-
-
-            //    //Calculo do erro
-            //    std::cout << "Computing Error " << std::endl;
-
-            std::stringstream sout;
-            sout << rootname;
-            switch (elementType) {
-                case ETriangular:
-                    sout << "_triangle";
-                    break;
-                case ESquare:
-                    sout << "_quad";
-                    break;
-                case ETrapezoidal:
-                    sout << "_trap";
-                    break;
-            }
-            sout << "_Error.nb";
-            ofstream ErroOut(sout.str(), std::ios::app);
-            ErroOut << "(* Type of simulation " << rootname << " *)\n";
-            ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
-            ErroOut << "(* Type of Element ";
-            switch (elementType) {
-                case ETriangular:
-                    ErroOut << "triangular ";
-                    break;
-                case ESquare:
-                    ErroOut << "square ";
-                    break;
-                case ETrapezoidal:
-                    ErroOut << "trapezoidal ";
-                    break;
-            }
-            ErroOut << " *)\n";
-            ErroOut << "(* Number of Condensed equations " << cmesh_m->NEquations() << " *)" << std::endl;
-            ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
-            ErroOut << "(*\n";
-            an.SetExact(example.Exact());
-            an.PostProcessError(Errors, ErroOut);
-            ErroOut << "nelx ribporder internalporder - error_u - error_energy - error_sigma\n";
-            ErroOut << "*)\n";
-            TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
-            output[0] = h_level;
-            output[1] = pref + 1;
-            output[2] = InternalpOrder;
-            output[3] = cmesh_m->NEquations();
-            output[4] = cmesh_m->Solution().Rows();
-            for (int i = 0; i < Errors.size(); i++) {
-                output[5 + i] = Errors[i];
-            }
-            ErroOut << "Error[[" << href + 1 << "," << pref + 1 << "]] = {" << output << "};\n";
-
-            std::cout << "Errors = " << Errors << std::endl;
-
-
         }
     }
-
-    //
-    //
-    //
-    //    //Pós-processamento (paraview):
-    //    std::cout << "Post Processing " << std::endl;
-    //    std::string plotfile("ElasticityTest.vtk");
-    //    TPZStack<std::string> scalnames, vecnames;
-    //    vecnames.Push("Displacement");
-    //    vecnames.Push("Stress");
-    //    vecnames.Push("Rotation");
-    ////    vecnames.Push("V_exact");
-    ////    vecnames.Push("P_exact");
-    //    //        vecnames.Push("V_exactBC");
-    //
-    //
-    //    int postProcessResolution = 3; //  keep low as possible
-    //
-    //    int dim = gmesh->Dimension();
-    //    an.DefineGraphMesh(dim,scalnames,vecnames,plotfile);
-    //    an.PostProcess(postProcessResolution,dim);
-
-    std::cout << "FINISHED!" << std::endl;
-
-    return 0;
 }
 
-TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double y0, EElementType meshType) {
+TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, double y0, EElementType meshType) {
     //Creating geometric mesh, nodes and elements.
     //Including nodes and elements in the mesh object:
     TPZGeoMesh *gmesh = new TPZGeoMesh();
@@ -495,8 +275,8 @@ TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double 
     //Inicialização dos nós:
 
     TPZManVector<int> nelem(2, 1);
-    nelem[0] = nx - 1;
-    nelem[1] = ny - 1;
+    nelem[0] = nelx;
+    nelem[1] = nely;
 
     TPZGenGrid gengrid(nelem, gcoord1, gcoord2);
 
@@ -590,6 +370,30 @@ TPZGeoMesh *CreateGMesh(int nx, int ny, double hx, double hy, double x0, double 
     }
      */
 
+    int64_t idx;
+
+    int nx = nelx + 1;
+    int ny = nely + 1;
+
+    TPZVec<int64_t> nodint(2);
+    for (int i = 0; i < nelx; ++i) {
+        for (int j = 0; j < nely; ++j) {
+            if (i != nelx - 1) {
+                //right edge
+                nodint[0] = j * nx + i + 1;
+                nodint[1] = nodint[0] + nx;
+                gmesh->CreateGeoElement(EOned, nodint, matLagrange, idx);
+            }
+            if (j != nely - 1) {
+                //top edge
+                nodint[0] = (j + 1) * nx + i;
+                nodint[1] = nodint[0] + 1;
+                gmesh->CreateGeoElement(EOned, nodint, matLagrange, idx);
+            }
+        }
+    }
+
+
     {
         TPZCheckGeom check(gmesh);
         check.CheckUniqueId();
@@ -661,6 +465,10 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     TPZMaterial * BCond4 = material->CreateBC(material, 2, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
     cmesh->InsertMaterialObject(BCond4); //Insere material na malha
 
+    val2s(0, 0) = 0;
+    val2s(1, 0) = 0;
+    cmesh->InsertMaterialObject(material->CreateBC(material, matLagrange, neumann, val1, val2s)); //Insere material na malha
+
     //Criando elementos computacionais que gerenciarão o espaco de aproximacao da malha:
     int ncel = cmesh->NElements();
     for (int i = 0; i < ncel; i++) {
@@ -731,14 +539,11 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
     }
     std::set<int> materialids;
     materialids.insert(matID);
-    //materialids.insert(3);
     cmesh->AutoBuild(materialids);
     cmesh->LoadReferences();
     cmesh->ApproxSpace().CreateDisconnectedElements(false);
     cmesh->AutoBuild();
 
-
-    // @omar::
     int ncon = cmesh->NConnects();
     for (int i = 0; i < ncon; i++) {
         TPZConnect &newnod = cmesh->ConnectVec()[i];
@@ -1106,6 +911,10 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     //BCond3->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
+    TPZMaterial * BCond4 = material->CreateBC(material, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
+    BCond4->SetForcingFunction(example.ValueFunction());
+    cmesh->InsertMaterialObject(BCond4); //Insere material na malha
+
     //Ponto
 
     //    TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
@@ -1125,30 +934,6 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     cmesh->CleanUpUnconnectedNodes();
 
     return cmesh;
-
-}
-
-void AddMultiphysicsInterfaces(TPZCompMesh &cmesh, int matfrom, int mattarget) {
-    TPZGeoMesh *gmesh = cmesh.Reference();
-    int64_t nel = gmesh->NElements();
-    for (int64_t el = 0; el < nel; el++) {
-        TPZGeoEl *gel = gmesh->Element(el);
-        if (gel->MaterialId() != matfrom) {
-            continue;
-        }
-
-        int nsides = gel->NSides();
-
-        TPZGeoElSide gelside(gel, nsides - 1);
-        TPZStack<TPZCompElSide> celstack;
-        gelside.EqualLevelCompElementList(celstack, 0, 0);
-        if (celstack.size() != 2) {
-            DebugStop();
-        }
-        gel->SetMaterialId(mattarget);
-        int64_t index;
-        new TPZMultiphysicsInterfaceElement(cmesh, gel, index, celstack[1], celstack[0]);
-    }
 
 }
 
@@ -1333,3 +1118,306 @@ STATE IntegrateBottom(TPZCompMesh *cmesh, int targetmatid) {
     return integSigy;
 }
 
+int main(int argc, char *argv[]) {
+    TPZMaterial::gBigNumber = 1.e16;
+
+#ifdef LOG4CXX
+    InitializePZLOG();
+#endif
+    EConfig conf = EThiago;
+    int n_ref_p = 3;
+    int n_ref_h = 7;
+    bool plotting = false;
+    EElementType elementType = ETrapezoidal;
+
+    switch (argc) {
+        case 6:
+            elementType = EElementType(atoi(argv[5]));
+        case 5:
+            plotting = atoi(argv[4]);
+        case 4:
+            n_ref_h = atoi(argv[3]);
+        case 3:
+            n_ref_p = atoi(argv[2]);
+        case 2:
+            conf = EConfig(atoi(argv[1]));
+    };
+
+    std::string rootname;
+    double hx = 2, hy = 2; //Dimensões em x e y do domínio
+    double x0 = -1;
+    double y0 = -1;
+
+    //Problem data:
+    switch (conf) {
+        case EThiago:
+        case EThiagoPlus:
+            TElasticityExample1::fProblemType = TElasticityExample1::EThiago;
+            TElasticityExample1::fStressState = TElasticityExample1::EPlaneStrain;
+            TElasticityExample1::fElast = 206.8150271873455;
+            TElasticityExample1::fNu = 0.3040039545229857;
+            hx = 1;
+            hy = 1;
+            x0 = 0;
+            y0 = 0;
+
+            rootname = ConfigRootname[conf] + "_Thiago";
+            break;
+        case EAxiSymmetric:
+        case EAxiSymmetricPlus:
+            TElasticityExample1::fProblemType = TElasticityExample1::Etest1;
+            TElasticityExample1::fStressState = TElasticityExample1::EAxiSymmetric;
+            TElasticityExample1::fElast = 100.;
+            TElasticityExample1::fNu = 0.;
+            hx = 2;
+            hy = 2;
+            x0 = 1;
+            y0 = -1;
+            rootname = ConfigRootname[conf] + "_Test1";
+            break;
+        default:
+            DebugStop();
+            break;
+    }
+    //    TPZManVector<STATE, 2> force(2);
+    //    TPZFNMatrix<4, STATE> sigma(2, 2);
+    //    TPZManVector<REAL, 3> x(3, 0.);
+    //    x[0] = x0 + hx / 2.;
+    //    x[1] = y0 + hy / 2.;
+    //    TElasticityExample1::Sigma(x, sigma);
+    //    TElasticityExample1::Force(x, force);
+
+    for (unsigned int pref = 0; pref < n_ref_p; ++pref) {
+        for (unsigned int href = 1; href < n_ref_h; ++href) {
+            unsigned int h_level = 1 << href;
+            unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
+            std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
+            unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
+            unsigned int RibpOrder = pref + 1; //Polynomial order of the approximation
+            int InternalpOrder = pref + 1;
+            if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
+                InternalpOrder = pref + 2;
+            }
+            TPZGeoMesh *gmesh = CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+
+#ifdef PZDEBUG
+            std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
+            std::ofstream filegvtk("MalhaGeo.vtk"); //Prints the geometric mesh in vtk format
+            gmesh->Print(fileg);
+            TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+#endif
+            //Creating computational mesh:
+            TPZCompMesh *cmesh_S = CMesh_S(gmesh, RibpOrder); //Creates the computational mesh for the stress field
+            ChangeInternalOrder(cmesh_S, InternalpOrder);
+            TPZCompMesh *cmesh_U = CMesh_U(gmesh, InternalpOrder); //Creates the computational mesh for the displacement field
+            TPZCompMesh *cmesh_P = CMesh_P(gmesh, RibpOrder); //Creates the computational mesh for the rotation field
+            //TPZCompMesh *cmesh_m = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
+            TPZCompMesh *cmesh_m = CMesh_m(gmesh, InternalpOrder);
+            //TPZCompMesh *cmesh_m = CMesh_AxiS(gmesh, InternalpOrder,  Example);
+#ifdef PZDEBUG
+            {
+                std::ofstream filecS("MalhaC_S.txt"); //Prints the stress computational mesh in txt format
+                std::ofstream filecU("MalhaC_U.txt"); //Prints the displacement computational mesh in txt format
+                std::ofstream filecP("MalhaC_P.txt"); //Prints the rotation computational mesh in txt format
+                cmesh_S->Print(filecS);
+                cmesh_U->Print(filecU);
+                cmesh_P->Print(filecP);
+            }
+#endif
+
+            TPZManVector<TPZCompMesh*, 3> meshvector(3);
+            meshvector[0] = cmesh_S;
+            meshvector[1] = cmesh_U;
+            meshvector[2] = cmesh_P;
+            TPZBuildMultiphysicsMesh::AddElements(meshvector, cmesh_m);
+            TPZBuildMultiphysicsMesh::AddConnects(meshvector, cmesh_m);
+            TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector, cmesh_m);
+            cmesh_m->LoadReferences();
+
+            AddMultiphysicsInterfaces(*cmesh_m);
+
+            CreateCondensedElements(cmesh_m);
+
+#ifdef PZDEBUG
+            std::ofstream fileg1("MalhaGeo2.txt");
+            gmesh->Print(fileg1); //Prints the geometric mesh in txt format
+
+            std::ofstream filecm("MalhaC_m.txt");
+            cmesh_m->Print(filecm); //Prints the multi-physics computational mesh in txt format
+#endif
+
+            //Solving the system:
+            int numthreads = 8;
+
+            bool optimizeBandwidth = true;
+            TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
+#ifdef USING_MKL
+            TPZSymetricSpStructMatrix matskl(cmesh_m);
+#else
+            TPZSkylineStructMatrix matskl(cmesh_m); // asymmetric case ***
+#endif
+            matskl.SetNumThreads(numthreads);
+            an.SetStructuralMatrix(matskl);
+            TPZStepSolver<STATE> step;
+            step.SetDirect(ELDLt);
+            an.SetSolver(step);
+
+            //  std::cout << "Assemble matrix with NDoF = " << cmesh_m->NEquations() << std::endl;
+            an.Assemble(); //Assembles the global stiffness matrix (and load vector)
+
+            TPZManVector<REAL, 3> Errors;
+            TElasticityExample1 example;
+            an.SetExact(example.Exact());
+            //            an.PostProcessError(Errors,std::cout);
+
+#ifdef PZDEBUG
+            //Imprimir Matriz de rigidez Global:
+            {
+                std::ofstream filestiff("stiffness.nb");
+                an.Solver().Matrix()->Print("K1 = ", filestiff, EMathematicaInput);
+
+                std::ofstream filerhs("rhs.nb");
+                an.Rhs().Print("R = ", filerhs, EMathematicaInput);
+            }
+#endif
+            /*
+             REAL sumrhs = 0.;
+             TPZFMatrix<STATE> &rhs = an.Rhs();
+             for(int64_t i=0; i< rhs.Rows(); i++)
+             {
+             sumrhs += rhs(i,0);
+             }
+             std::cout << " sumrhs "  << sumrhs << std::endl;
+             std::cout << "Solving Matrix " << std::endl;
+             */
+            an.Solve();
+
+#ifdef PZDEBUG
+            {
+                std::ofstream file("file.txt");
+                an.Solution().Print("sol=", file, EMathematicaInput);
+
+            }
+#endif
+            TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(meshvector, cmesh_m);
+
+            if (plotting) {
+                std::string plotfile;
+                {
+                    std::stringstream sout;
+                    sout << rootname << ".vtk";
+                    plotfile = sout.str();
+                }
+                TPZStack<std::string> scalnames, vecnames;
+                scalnames.Push("SigmaX");
+                scalnames.Push("SigmaY");
+                scalnames.Push("TauXY");
+                vecnames.Push("Flux");
+                vecnames.Push("displacement");
+                vecnames.Push("Stress");
+                int count = href * n_ref_p + pref;
+                an.SetStep(count);
+                an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
+                an.PostProcess(2);
+            }
+#ifdef PZDEBUG
+            //Imprimindo vetor solução:
+            {
+                TPZFMatrix<STATE> solucao = cmesh_m->Solution(); //Pegando o vetor de solução, alphaj
+                std::ofstream solout("sol.nb");
+                solucao.Print("Sol", solout, EMathematicaInput); //Imprime na formatação do Mathematica
+
+                std::ofstream fileAlpha("alpha.nb");
+                an.Solution().Print("Alpha = ", fileAlpha, EMathematicaInput);
+            }
+#endif
+
+            //   matids.clear();
+            //   matids.insert(-1);
+            //   TPZManVector<STATE,3> result;
+            //  result = cmesh_m->Integrate("state",matids);
+            //  std::cout << "Sigma Y"  << result << std::endl;
+
+
+            //    //Calculo do erro
+            //    std::cout << "Computing Error " << std::endl;
+
+            std::stringstream sout;
+            sout << rootname;
+            switch (elementType) {
+                case ETriangular:
+                    sout << "_triangle";
+                    break;
+                case ESquare:
+                    sout << "_quad";
+                    break;
+                case ETrapezoidal:
+                    sout << "_trap";
+                    break;
+            }
+            sout << "_Error.nb";
+            ofstream ErroOut(sout.str(), std::ios::app);
+            ErroOut << "(* Type of simulation " << rootname << " *)\n";
+            ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
+            ErroOut << "(* Type of Element ";
+            switch (elementType) {
+                case ETriangular:
+                    ErroOut << "triangular ";
+                    break;
+                case ESquare:
+                    ErroOut << "square ";
+                    break;
+                case ETrapezoidal:
+                    ErroOut << "trapezoidal ";
+                    break;
+            }
+            ErroOut << " *)\n";
+            ErroOut << "(* Number of Condensed equations " << cmesh_m->NEquations() << " *)" << std::endl;
+            ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
+            ErroOut << "(*\n";
+            an.SetExact(example.Exact());
+            an.PostProcessError(Errors, ErroOut);
+            ErroOut << "nelx ribporder internalporder - error_u - error_energy - error_sigma\n";
+            ErroOut << "*)\n";
+            TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
+            output[0] = h_level;
+            output[1] = pref + 1;
+            output[2] = InternalpOrder;
+            output[3] = cmesh_m->NEquations();
+            output[4] = cmesh_m->Solution().Rows();
+            for (int i = 0; i < Errors.size(); i++) {
+                output[5 + i] = Errors[i];
+            }
+            ErroOut << "Error[[" << href + 1 << "," << pref + 1 << "]] = {" << output << "};\n";
+
+            std::cout << "Errors = " << Errors << std::endl;
+
+
+        }
+    }
+
+    //
+    //
+    //
+    //    //Pós-processamento (paraview):
+    //    std::cout << "Post Processing " << std::endl;
+    //    std::string plotfile("ElasticityTest.vtk");
+    //    TPZStack<std::string> scalnames, vecnames;
+    //    vecnames.Push("Displacement");
+    //    vecnames.Push("Stress");
+    //    vecnames.Push("Rotation");
+    ////    vecnames.Push("V_exact");
+    ////    vecnames.Push("P_exact");
+    //    //        vecnames.Push("V_exactBC");
+    //
+    //
+    //    int postProcessResolution = 3; //  keep low as possible
+    //
+    //    int dim = gmesh->Dimension();
+    //    an.DefineGraphMesh(dim,scalnames,vecnames,plotfile);
+    //    an.PostProcess(postProcessResolution,dim);
+
+    std::cout << "FINISHED!" << std::endl;
+
+    return 0;
+}
