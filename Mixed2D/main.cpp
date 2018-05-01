@@ -370,29 +370,30 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
     }
      */
 
-    int64_t idx;
-
-    int nx = nelx + 1;
-    int ny = nely + 1;
-
-    TPZVec<int64_t> nodint(2);
-    for (int i = 0; i < nelx; ++i) {
-        for (int j = 0; j < nely; ++j) {
-            if (i != nelx - 1) {
-                //right edge
-                nodint[0] = j * nx + i + 1;
-                nodint[1] = nodint[0] + nx;
-                gmesh->CreateGeoElement(EOned, nodint, matLagrange, idx);
-            }
-            if (j != nely - 1) {
-                //top edge
-                nodint[0] = (j + 1) * nx + i;
-                nodint[1] = nodint[0] + 1;
-                gmesh->CreateGeoElement(EOned, nodint, matLagrange, idx);
-            }
-        }
-    }
-
+//    int64_t idx;
+//
+//    int nx = nelx + 1;
+//    int ny = nely + 1;
+//
+//    TPZVec<int64_t> nodint(2);
+//    for (int i = 0; i < nelx; ++i) {
+//        for (int j = 0; j < nely; ++j) {
+//            if (i != nelx - 1) {
+//                //right edge
+//                nodint[0] = j * nx + i + 1;
+//                nodint[1] = nodint[0] + nx;
+//                gmesh->CreateGeoElement(EOned, nodint, matLagrange, idx);
+//            }
+//            if (j != nely - 1) {
+//                //top edge
+//                nodint[0] = (j + 1) * nx + i;
+//                nodint[1] = nodint[0] + 1;
+//                gmesh->CreateGeoElement(EOned, nodint, matLagrange, idx);
+//            }
+//        }
+//    }
+//
+//    gmesh->BuildConnectivity();
 
     {
         TPZCheckGeom check(gmesh);
@@ -947,7 +948,10 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZGeoEl *gel = mphys->Reference();
         if (gel->Dimension() != cmesh->Dimension()) continue;
 
-        int64_t newconnectindex = cmesh->AllocateNewConnect(4, 1, 1);
+        int nshape = 3;
+        int nstate = 1;
+        int order = 1;
+        int64_t newconnectindex = cmesh->AllocateNewConnect(nshape, nstate, order);
         cmesh->ConnectVec()[newconnectindex].SetLagrangeMultiplier(2);
         cmesh->ConnectVec()[newconnectindex].IncrementElConnected();
         cmesh->ConnectVec()[newconnectindex].IncrementElConnected();
@@ -961,7 +965,9 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         if (numel != 3) DebugStop();
         TPZManVector<int> numconnects(numel, 0);
         for (int i = 0; i < numel; i++) numconnects[i] = mphys->Element(i)->NConnects();
-        TPZManVector<TPZCompElLagrange::TLagrange, 4> EquationDelay(4);
+        // removed the equation delay associated with the anti symmetric tensor
+        TPZManVector<TPZCompElLagrange::TLagrange, 4> EquationDelay(3);
+        // do not condense the first displacement in x, first displacement in y and displacement in x of the second connect
         EquationDelay[0].fConnect[0] = mphys->ConnectIndex(numconnects[0]);
         EquationDelay[0].fIdf[0] = 0;
         EquationDelay[0].fConnect[1] = newconnectindex;
@@ -974,10 +980,10 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         EquationDelay[2].fIdf[0] = constridf;
         EquationDelay[2].fConnect[1] = newconnectindex;
         EquationDelay[2].fIdf[1] = 2;
-        EquationDelay[3].fConnect[0] = mphys->ConnectIndex(numconnects[0] + numconnects[1] + numconnects[2] - 1);
-        EquationDelay[3].fIdf[0] = 0;
-        EquationDelay[3].fConnect[1] = newconnectindex;
-        EquationDelay[3].fIdf[1] = 3;
+//        EquationDelay[3].fConnect[0] = mphys->ConnectIndex(numconnects[0] + numconnects[1] + numconnects[2] - 1);
+//        EquationDelay[3].fIdf[0] = 0;
+//        EquationDelay[3].fConnect[1] = newconnectindex;
+//        EquationDelay[3].fIdf[1] = 3;
         int64_t elindex;
         new TPZCompElLagrange(*cmesh, EquationDelay, elindex);
         int64_t groupindex;
@@ -986,7 +992,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         elgr->AddElement(cmesh->Element(elindex));
         TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr);
     }
-    cmesh->ExpandSolution();
+    cmesh->InitializeBlock();
 }
 
 void CreateCondensedElements2(TPZCompMesh *cmesh) {
@@ -1125,10 +1131,10 @@ int main(int argc, char *argv[]) {
     InitializePZLOG();
 #endif
     EConfig conf = EThiago;
-    int n_ref_p = 3;
-    int n_ref_h = 7;
+    int n_ref_p = 1;
+    int n_ref_h = 2;
     bool plotting = false;
-    EElementType elementType = ETrapezoidal;
+    EElementType elementType = ESquare;
 
     switch (argc) {
         case 6:
@@ -1234,9 +1240,9 @@ int main(int argc, char *argv[]) {
             TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector, cmesh_m);
             cmesh_m->LoadReferences();
 
-            AddMultiphysicsInterfaces(*cmesh_m);
+//            AddMultiphysicsInterfaces(*cmesh_m);
 
-            CreateCondensedElements(cmesh_m);
+//            CreateCondensedElements(cmesh_m);
 
 #ifdef PZDEBUG
             std::ofstream fileg1("MalhaGeo2.txt");
@@ -1247,7 +1253,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            int numthreads = 8;
+            int numthreads = 0;
 
             bool optimizeBandwidth = true;
             TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
@@ -1376,7 +1382,9 @@ int main(int argc, char *argv[]) {
             ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(example.Exact());
-            an.PostProcessError(Errors, ErroOut);
+            bool store_errors = true;
+            cmesh_m->ElementSolution().Redim(cmesh_m->NElements(), 5);
+            an.PostProcessError(Errors, store_errors, ErroOut);
             ErroOut << "nelx ribporder internalporder - error_u - error_energy - error_sigma\n";
             ErroOut << "*)\n";
             TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
