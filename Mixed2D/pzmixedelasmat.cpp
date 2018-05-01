@@ -403,8 +403,11 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
         ef(nshapeS * 2 + 2 * i + 1, 0) += factfy;
 
         //if(ef(nshapeS*2+2*j) != 0.) DebugStop();
-        for (int j = 0; j < nshapeU; j++) {
-            ek(nshapeS * 2 + 2 * i, nshapeS * 2 + 2 * j) -= weight * phiU(i, 0) * phiU(j, 0) / (fE * R);
+        if (fAxisSymmetric)
+        {
+            for (int j = 0; j < nshapeU; j++) {
+                ek(nshapeS * 2 + 2 * i, nshapeS * 2 + 2 * j) -= weight * phiU(i, 0) * phiU(j, 0) / (fE * R);
+            }
         }
     }
     ///    std::ofstream filestiff("ek.txt");
