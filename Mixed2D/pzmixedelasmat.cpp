@@ -223,10 +223,6 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
         FillVecShapeIndex(datavec[0]);
     }
 
-    //Gravity
-    STATE rhoi = 1; //900.; //itapopo
-    STATE g = 9.81; //itapopo
-    STATE force = rhoi*g;
     REAL R = datavec[0].x[0];
     // Setting the phi's
     // E
@@ -237,24 +233,23 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
     TPZFMatrix<REAL> &dphiU = datavec[1].dphix;
     // P
     TPZFMatrix<REAL> &phiP = datavec[2].phi;
-    TPZFMatrix<REAL> &dphiP = datavec[2].dphix;
 
     //    
-    TPZFNMatrix<220, REAL> dphiSx(fDimension, dphiS.Cols());
-    TPZAxesTools<REAL>::Axes2XYZ(dphiS, dphiSx, datavec[0].axes);
+//    TPZFNMatrix<220, REAL> dphiSx(fDimension, dphiS.Cols());
+//    TPZAxesTools<REAL>::Axes2XYZ(dphiS, dphiSx, datavec[0].axes);
 
-    TPZFNMatrix<220, REAL> dphiUx(fDimension, phiU.Cols());
-    TPZAxesTools<REAL>::Axes2XYZ(dphiU, dphiUx, datavec[1].axes);
+//    TPZFNMatrix<220, REAL> dphiUx(fDimension, phiU.Cols());
+//    TPZAxesTools<REAL>::Axes2XYZ(dphiU, dphiUx, datavec[1].axes);
 
-    TPZFNMatrix<220, REAL> dphiPx(fDimension, phiP.Cols());
-    TPZAxesTools<REAL>::Axes2XYZ(dphiU, dphiPx, datavec[2].axes);
+//    TPZFNMatrix<220, REAL> dphiPx(fDimension, phiP.Cols());
+//    TPZAxesTools<REAL>::Axes2XYZ(dphiU, dphiPx, datavec[2].axes);
 
     int nshapeS, nshapeU, nshapeP;
     nshapeS = datavec[0].fVecShapeIndex.NElements();
     nshapeU = datavec[1].phi.Rows();
     nshapeP = datavec[2].phi.Rows();
 
-    TPZManVector<double, 2> f(2, 0.);
+    TPZManVector<double, 2> force(2, 0.);
     TPZFMatrix<STATE> phiSi(3, 1, 0.), phiSj(fDimension, 1, 0.);
     TPZManVector<STATE, 2> divSi1x(2, 0.), divSi1y(2, 0.);
     TPZManVector<STATE, 4> phiSi1x(4, 0.0), phiSj1x(4, 0.0), phiSi1y(4, 0.0), phiSj1y(4, 0.0), phiPj1x(4, 0.0), phiPj1y(4, 0.0);
@@ -262,14 +257,14 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
     TPZFMatrix<STATE> phiPi(fDimension, 1, 0.0), phiPj(fDimension, 1, 0.0);
     TPZFNMatrix<3, REAL> ivecS(3, 1, 0.);
 
-    f[0] = this->fForce[0];
-    f[1] = this->fForce[1];
+    force[0] = this->fForce[0];
+    force[1] = this->fForce[1];
     if (this->HasForcingFunction()) {
-        this->ForcingFunction()->Execute(datavec[0].x, f);
+        this->ForcingFunction()->Execute(datavec[0].x, force);
 #ifdef LOG4CXX
         if (logdata->isDebugEnabled()) {
             std::stringstream sout;
-            sout << " x = " << datavec[0].x << " f = " << f << std::endl;
+            sout << " x = " << datavec[0].x << " force = " << force << std::endl;
             LOGPZ_DEBUG(logdata, sout.str())
         }
 #endif
@@ -392,8 +387,8 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
         phiUj1y[1] = phiU(i, 0);
 
         // Load vector f:
-        STATE factfx = -weight * phiUj1x[0] * f[0];
-        STATE factfy = -weight * phiUj1y[1] * f[1];
+        STATE factfx = -weight * phiUj1x[0] * force[0];
+        STATE factfy = -weight * phiUj1y[1] * force[1];
         if (fAxisSymmetric) {
             factfx *= R;
             factfy *= R;
