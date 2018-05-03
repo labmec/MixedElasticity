@@ -24,7 +24,7 @@ ENDIF (WIN32)
 
 IF(APPLE)
    # Mac OS X specific code
-   add_definitions(-DMACOSX)
+   add_definitions(-DMACOSX -DPZDEBUG)
    set(MACOSX MACOSX)
    FIND_LIBRARY(ACCELERATE_LIB Accelerate)
    link_libraries(${ACCELERATE_LIB})
