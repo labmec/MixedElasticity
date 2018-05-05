@@ -1,5 +1,5 @@
 file(GLOB headers *.h)
-file(GLOB sources meshgen.cpp pzmixedelasmat.cpp)
+file(GLOB sources *.cpp)
 
 set(Mymain main.cpp ${sources} ${headers})
 

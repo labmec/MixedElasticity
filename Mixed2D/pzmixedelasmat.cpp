@@ -260,7 +260,7 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
     force[0] = this->fForce[0];
     force[1] = this->fForce[1];
     if (this->HasForcingFunction()) {
-        this->ForcingFunction()->Execute(datavec[0].x, force);
+    //    this->ForcingFunction()->Execute(datavec[0].x, force);
 #ifdef LOG4CXX
         if (logdata->isDebugEnabled()) {
             std::stringstream sout;
