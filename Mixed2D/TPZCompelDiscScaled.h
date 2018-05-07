@@ -14,26 +14,45 @@
 #include "pzvec.h"
 #include "pzcompel.h"
 #include "pzinterpolationspace.h"
-#include "TPZCompelDisc.h"
+#include "TPZCompElDisc.h"
 #include "pzgeoel.h"
-#include "pzreal.h"
 #include "TPZShapeDisc.h"
-#include "tpzautopointer.h"
-#include "pzquad.h"
-#include "pzfunction.h"
-#include "pzfmatrix.h"
+
 
 class TPZCompElDiscScaled : public TPZCompElDisc {
 
+protected:
+    
+    REAL fScale = 1.;
+    
 public:
     
-//    void SetScale();
-//    
-//    virtual void ComputeShape(TPZVec<REAL> &intpoint,TPZMaterialData &data);
+    /** @brief Default constructor */
 
+    TPZCompElDiscScaled() : TPZCompElDisc(){ }
+    
+    /** @brief Constructor of the discontinuous element associated with geometric element */
+    TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref,int64_t &index) : TPZCompElDisc(mesh,ref,index){ } ;//original
+
+    /** @brief Copy constructor */
+    TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy) : TPZCompElDisc(mesh,copy), fScale(copy.fScale){ };
+
+    /** @brief Default destructor */
+    ~TPZCompElDiscScaled();
+    
+    /** @brief Return the shape functions scale */
+    REAL Scale() const {return fScale;}
+
+    /** @brief Set a constant value to shape functions scale */
+    void SetScale(REAL c){fScale = c;}
+
+    /** @brief Set the shape functions scale related to reference characteristic size*/
+    void SetScale();
+    
+    /** @brief Compute shape functions divided by scale value*/
     virtual void Shape(TPZVec<REAL> &qsi,TPZFMatrix<REAL> &phi,TPZFMatrix<REAL> &dphidxi);
    
-    void ShapeX(TPZVec<REAL> &X, TPZFMatrix<REAL> &phi, TPZFMatrix<REAL> &dphi);
+
 
 };
 
