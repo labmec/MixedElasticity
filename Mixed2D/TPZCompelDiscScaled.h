@@ -1,22 +1,17 @@
 //
-//  TPZCompelDiscScaled.h
+//  TPZCompElDiscScaled.h
 //  MixedElasticityGirkmann
 //
 //  Created by Philippe Devloo on 03/05/18.
 //
 
-#ifndef TPZCompelDiscScaled_h
-#define TPZCompelDiscScaled_h
+#ifndef TPZCompElDiscScaled_h
+#define TPZCompElDiscScaled_h
 
 #include <stdio.h>
 #include <iostream>
-#include "pzfmatrix.h"
-#include "pzvec.h"
-#include "pzcompel.h"
-#include "pzinterpolationspace.h"
 #include "TPZCompElDisc.h"
 #include "pzgeoel.h"
-#include "TPZShapeDisc.h"
 
 
 class TPZCompElDiscScaled : public TPZCompElDisc {
@@ -29,10 +24,14 @@ public:
     
     /** @brief Default constructor */
 
-    TPZCompElDiscScaled() : TPZCompElDisc(){ }
+    TPZCompElDiscScaled() : TPZCompElDisc() {
+        ComputeScale();
+    }
     
     /** @brief Constructor of the discontinuous element associated with geometric element */
-    TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref,int64_t &index) : TPZCompElDisc(mesh,ref,index){ } ;//original
+    TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref,int64_t &index) : TPZCompElDisc(mesh,ref,index){
+        ComputeScale();
+    } ;//original
 
     /** @brief Copy constructor */
     TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy) : TPZCompElDisc(mesh,copy), fScale(copy.fScale){ };
@@ -46,12 +45,11 @@ public:
     /** @brief Set a constant value to shape functions scale */
     void SetScale(REAL c){fScale = c;}
 
-    /** @brief Set the shape functions scale related to reference characteristic size*/
-    void SetScale();
+    /** @brief Compute the shape functions scale related to reference characteristic size*/
+    void ComputeScale();
     
     /** @brief Compute shape functions divided by scale value*/
     virtual void Shape(TPZVec<REAL> &qsi,TPZFMatrix<REAL> &phi,TPZFMatrix<REAL> &dphidxi);
-   
 
 
 };

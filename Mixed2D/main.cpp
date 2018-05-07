@@ -7,7 +7,7 @@
 #include "pzmat2dlin.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSkylineNSymStructMatrix.h"
-#include "TPZCompelDiscScaled.h"
+#include "TPZCompElDiscScaled.h"
 #include "TPZParFrontStructMatrix.h"
 #include "TPZSSpStructMatrix.h"
 
