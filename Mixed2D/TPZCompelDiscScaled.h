@@ -19,6 +19,9 @@ class TPZCompElDiscScaled : public TPZCompElDisc {
 protected:
     
     REAL fScale = 1.;
+   
+    /** @brief Compute the shape functions scale related to reference characteristic size*/
+    void ComputeScale();
     
 public:
     
@@ -31,22 +34,24 @@ public:
     /** @brief Constructor of the discontinuous element associated with geometric element */
     TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref,int64_t &index) : TPZCompElDisc(mesh,ref,index){
         ComputeScale();
-    } ;//original
+    }
 
     /** @brief Copy constructor */
-    TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy) : TPZCompElDisc(mesh,copy), fScale(copy.fScale){ };
+    TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy) : TPZCompElDisc(mesh,copy), fScale(copy.fScale){
+    }
 
     /** @brief Default destructor */
     ~TPZCompElDiscScaled();
     
     /** @brief Return the shape functions scale */
-    REAL Scale() const {return fScale;}
+    REAL Scale() const {
+        return fScale;
+    }
 
     /** @brief Set a constant value to shape functions scale */
-    void SetScale(REAL c){fScale = c;}
-
-    /** @brief Compute the shape functions scale related to reference characteristic size*/
-    void ComputeScale();
+    void SetScale(REAL c){
+        fScale = c;
+    }
     
     /** @brief Compute shape functions divided by scale value*/
     virtual void Shape(TPZVec<REAL> &qsi,TPZFMatrix<REAL> &phi,TPZFMatrix<REAL> &dphidxi);
