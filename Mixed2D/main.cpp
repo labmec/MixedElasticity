@@ -7,7 +7,7 @@
 #include "pzmat2dlin.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSkylineNSymStructMatrix.h"
-#include "TPZCompElDiscScaled.h"
+#include "TPZCompelDiscScaled.h"
 #include "TPZParFrontStructMatrix.h"
 #include "TPZSSpStructMatrix.h"
 
@@ -124,8 +124,9 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder);
  * @note Responsavel pela criacao dos espacos de aproximacao do problema
  * @param gmesh malha geometrica
  * @param pOrder ordem polinomial de aproximacao
+ * @param elementdimension tamanho de elementos
  */
-TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder);
+TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdimension);
 
 /**
  * @brief Funcao para criar a malha computacional multi-fisica
@@ -558,7 +559,7 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
 
 }
 
-TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder) {
+TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
     //Criando malha computacional:
     TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
     cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
@@ -615,6 +616,21 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder) {
     materialids.insert(matID);
     //materialids.insert(3);
     cmesh->AutoBuild(materialids);
+    {
+        gmesh->ResetReference();
+        int64_t nel = gmesh->NElements();
+        for (int64_t el=0; el<nel; el++) {
+            TPZGeoEl *gel = gmesh->Element(el);
+            if(!gel)continue;
+            int matid = gel->MaterialId();
+            if (materialids.find(matid) == materialids.end()) {
+                continue;
+            }
+            int64_t index;
+            new TPZCompElDiscScaled(*cmesh,gel,index);
+            gel->ResetReference();
+        }
+    }
     cmesh->LoadReferences();
     //    cmesh->ApproxSpace().CreateDisconnectedElements(false);
     //    cmesh->AutoBuild();
@@ -635,9 +651,12 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder) {
         }
         disc->SetTotalOrderShape();
         disc->SetFalseUseQsiEta();
+        disc->SetConstC(elementdim);
+        disc->SetScale(1./elementdim);
     }
 
     cmesh->CleanUpUnconnectedNodes();
+    cmesh->ExpandSolution();
     return cmesh;
 
 }
@@ -1132,7 +1151,7 @@ int main(int argc, char *argv[]) {
 #endif
     EConfig conf = EThiago;
     int n_ref_p = 1;
-    int n_ref_h = 2;
+    int n_ref_h = 9;
     bool plotting = false;
     EElementType elementType = ESquare;
 
@@ -1194,7 +1213,7 @@ int main(int argc, char *argv[]) {
     //    TElasticityExample1::Force(x, force);
 
     for (unsigned int pref = 0; pref < n_ref_p; ++pref) {
-        for (unsigned int href = 1; href < n_ref_h; ++href) {
+        for (unsigned int href = 6; href < n_ref_h; ++href) {
             unsigned int h_level = 1 << href;
             unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
@@ -1216,7 +1235,7 @@ int main(int argc, char *argv[]) {
             TPZCompMesh *cmesh_S = CMesh_S(gmesh, RibpOrder); //Creates the computational mesh for the stress field
             ChangeInternalOrder(cmesh_S, InternalpOrder);
             TPZCompMesh *cmesh_U = CMesh_U(gmesh, InternalpOrder); //Creates the computational mesh for the displacement field
-            TPZCompMesh *cmesh_P = CMesh_P(gmesh, RibpOrder); //Creates the computational mesh for the rotation field
+            TPZCompMesh *cmesh_P = CMesh_P(gmesh, RibpOrder, hx/nelx); //Creates the computational mesh for the rotation field
             //TPZCompMesh *cmesh_m = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
             TPZCompMesh *cmesh_m = CMesh_m(gmesh, InternalpOrder);
             //TPZCompMesh *cmesh_m = CMesh_AxiS(gmesh, InternalpOrder,  Example);
@@ -1242,7 +1261,7 @@ int main(int argc, char *argv[]) {
 
 //            AddMultiphysicsInterfaces(*cmesh_m);
 
-//            CreateCondensedElements(cmesh_m);
+            CreateCondensedElements(cmesh_m);
 
 #ifdef PZDEBUG
             std::ofstream fileg1("MalhaGeo2.txt");
@@ -1253,9 +1272,10 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            int numthreads = 0;
+            int numthreads = 8;
 
             bool optimizeBandwidth = true;
+            cmesh_m->InitializeBlock();
             TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
 #ifdef USING_MKL
             TPZSymetricSpStructMatrix matskl(cmesh_m);
@@ -1278,6 +1298,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef PZDEBUG
             //Imprimir Matriz de rigidez Global:
+            if(0)
             {
                 std::ofstream filestiff("stiffness.nb");
                 an.Solver().Matrix()->Print("K1 = ", filestiff, EMathematicaInput);
@@ -1299,6 +1320,7 @@ int main(int argc, char *argv[]) {
             an.Solve();
 
 #ifdef PZDEBUG
+            if(0)
             {
                 std::ofstream file("file.txt");
                 an.Solution().Print("sol=", file, EMathematicaInput);
@@ -1382,6 +1404,7 @@ int main(int argc, char *argv[]) {
             ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(example.Exact());
+            an.SetThreadsForError(8);
             bool store_errors = true;
             cmesh_m->ElementSolution().Redim(cmesh_m->NElements(), 5);
             an.PostProcessError(Errors, store_errors, ErroOut);

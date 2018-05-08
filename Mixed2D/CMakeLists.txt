@@ -1,9 +1,9 @@
-file(GLOB headers *.h)
-file(GLOB sources *.cpp)
 
-set(Mymain main.cpp ${sources} ${headers})
+set(sources TPZCompelDiscScaled.h TPZCompelDiscScaled.cpp meshgen.h meshgen.cpp pzmixedelasmat.h pzmixedelasmat.cpp)
 
-add_executable(MixedElasticitySquare ${Mymain})
+set(Mymain main.cpp )
+
+add_executable(MixedElasticitySquare ${Mymain} ${sources})
 
 target_link_libraries(MixedElasticitySquare pz)
 

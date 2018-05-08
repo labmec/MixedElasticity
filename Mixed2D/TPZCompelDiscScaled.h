@@ -41,7 +41,10 @@ public:
     }
 
     /** @brief Default destructor */
-    ~TPZCompElDiscScaled();
+    virtual ~TPZCompElDiscScaled()
+    {
+        
+    }
     
     /** @brief Return the shape functions scale */
     REAL Scale() const {
@@ -53,9 +56,11 @@ public:
         fScale = c;
     }
     
-    /** @brief Compute shape functions divided by scale value*/
-    virtual void Shape(TPZVec<REAL> &qsi,TPZFMatrix<REAL> &phi,TPZFMatrix<REAL> &dphidxi);
-
+    /** @brief Compute shape functions multiplied by scale value*/
+    virtual void ComputeShape(TPZVec<REAL> &intpoint, TPZVec<REAL> &X,
+                                     TPZFMatrix<REAL> &jacobian, TPZFMatrix<REAL> &axes,
+                                     REAL &detjac, TPZFMatrix<REAL> &jacinv,
+                              TPZFMatrix<REAL> &phi, TPZFMatrix<REAL> &dphi, TPZFMatrix<REAL> &dphix);
 
 };
 
