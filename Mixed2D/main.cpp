@@ -7,7 +7,7 @@
 #include "pzmat2dlin.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSkylineNSymStructMatrix.h"
-
+#include "TPZCompElDiscScaled.h"
 #include "TPZParFrontStructMatrix.h"
 #include "TPZSSpStructMatrix.h"
 
@@ -629,7 +629,7 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder) {
     int64_t nelem = cmesh->NElements();
     for (int64_t el = 0; el < nelem; el++) {
         TPZCompEl *cel = cmesh->Element(el);
-        TPZCompElDisc *disc = dynamic_cast<TPZCompElDisc *> (cel);
+        TPZCompElDiscScaled *disc = dynamic_cast<TPZCompElDiscScaled *> (cel);
         if (!disc) {
             continue;
         }
