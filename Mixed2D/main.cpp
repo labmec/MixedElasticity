@@ -1009,7 +1009,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZElementGroup *elgr = new TPZElementGroup(*cmesh, groupindex);
         elgr->AddElement(cel);
         elgr->AddElement(cmesh->Element(elindex));
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr, false);
     }
     cmesh->InitializeBlock();
 }
@@ -1150,23 +1150,34 @@ int main(int argc, char *argv[]) {
     InitializePZLOG();
 #endif
     EConfig conf = EThiago;
+    int initial_p = 1;
     int n_ref_p = 1;
+    int initial_h = 1;
     int n_ref_h = 9;
     bool plotting = false;
     EElementType elementType = ESquare;
+    int numthreads = 8;
 
     switch (argc) {
+        case 9:
+            numthreads = atoi(argv[8]);
+        case 8:
+            elementType = EElementType(atoi(argv[7]));
+        case 7:
+            plotting = atoi(argv[6]);
         case 6:
-            elementType = EElementType(atoi(argv[5]));
+            n_ref_h = atoi(argv[5]);
         case 5:
-            plotting = atoi(argv[4]);
+            initial_h = atoi(argv[4]);
         case 4:
-            n_ref_h = atoi(argv[3]);
+            n_ref_p = atoi(argv[3]);
         case 3:
-            n_ref_p = atoi(argv[2]);
+            initial_p = atoi(argv[2]);
         case 2:
             conf = EConfig(atoi(argv[1]));
     };
+    int final_p = initial_p + n_ref_p - 1;
+    int final_h = initial_h + n_ref_h - 1;
 
     std::string rootname;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
@@ -1212,8 +1223,8 @@ int main(int argc, char *argv[]) {
     //    TElasticityExample1::Sigma(x, sigma);
     //    TElasticityExample1::Force(x, force);
 
-    for (unsigned int pref = 0; pref < n_ref_p; ++pref) {
-        for (unsigned int href = 6; href < n_ref_h; ++href) {
+    for (unsigned int pref = initial_p-1; pref < final_p; ++pref) {
+        for (unsigned int href = initial_h; href < final_h; ++href) {
             unsigned int h_level = 1 << href;
             unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
@@ -1272,8 +1283,6 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            int numthreads = 8;
-
             bool optimizeBandwidth = true;
             cmesh_m->InitializeBlock();
             TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
@@ -1343,7 +1352,7 @@ int main(int argc, char *argv[]) {
                 vecnames.Push("Flux");
                 vecnames.Push("displacement");
                 vecnames.Push("Stress");
-                int count = href * n_ref_p + pref;
+                int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
                 an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
                 an.PostProcess(2);
@@ -1383,7 +1392,7 @@ int main(int argc, char *argv[]) {
                     sout << "_trap";
                     break;
             }
-            sout << "_Error.nb";
+            sout << "_" << RibpOrder << "_Error.nb";
             ofstream ErroOut(sout.str(), std::ios::app);
             ErroOut << "(* Type of simulation " << rootname << " *)\n";
             ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
