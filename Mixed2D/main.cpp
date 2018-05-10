@@ -1224,7 +1224,7 @@ int main(int argc, char *argv[]) {
     //    TElasticityExample1::Force(x, force);
 
     for (unsigned int pref = initial_p-1; pref < final_p; ++pref) {
-        for (unsigned int href = initial_h; href < final_h; ++href) {
+        for (unsigned int href = initial_h; href <= final_h; ++href) {
             unsigned int h_level = 1 << href;
             unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
