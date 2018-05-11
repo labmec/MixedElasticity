@@ -1297,8 +1297,9 @@ int main(int argc, char *argv[]) {
             step.SetDirect(ELDLt);
             an.SetSolver(step);
 
-            //  std::cout << "Assemble matrix with NDoF = " << cmesh_m->NEquations() << std::endl;
+            std::cout << "Assemble matrix with NDoF = " << cmesh_m->NEquations() << "." << std::endl;
             an.Assemble(); //Assembles the global stiffness matrix (and load vector)
+            std::cout << "Assemble finished." << std::endl;
 
             TPZManVector<REAL, 3> Errors;
             TElasticityExample1 example;
@@ -1326,7 +1327,9 @@ int main(int argc, char *argv[]) {
              std::cout << " sumrhs "  << sumrhs << std::endl;
              std::cout << "Solving Matrix " << std::endl;
              */
+            std::cout << "Solving." << std::endl;
             an.Solve();
+            std::cout << "Solved." << std::endl;
 
 #ifdef PZDEBUG
             if(0)
@@ -1413,10 +1416,12 @@ int main(int argc, char *argv[]) {
             ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(example.Exact());
-            an.SetThreadsForError(8);
+            an.SetThreadsForError(numthreads);
             bool store_errors = true;
             cmesh_m->ElementSolution().Redim(cmesh_m->NElements(), 5);
+            std::cout << "Computing errors." << std::endl;
             an.PostProcessError(Errors, store_errors, ErroOut);
+            std::cout << "Computed errors." << std::endl;
             ErroOut << "nelx ribporder internalporder - error_u - error_energy - error_sigma\n";
             ErroOut << "*)\n";
             TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
