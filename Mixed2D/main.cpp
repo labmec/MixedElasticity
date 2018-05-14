@@ -631,7 +631,7 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
             gel->ResetReference();
         }
     }
-    cmesh->LoadReferences();
+    //cmesh->LoadReferences();
     //    cmesh->ApproxSpace().CreateDisconnectedElements(false);
     //    cmesh->AutoBuild();
 
@@ -1151,9 +1151,9 @@ int main(int argc, char *argv[]) {
 #endif
     EConfig conf = EThiago;
     int initial_p = 1;
-    int n_ref_p = 1;
+    int final_p = 1;
     int initial_h = 1;
-    int n_ref_h = 9;
+    int final_h = 9;
     bool plotting = false;
     EElementType elementType = ESquare;
     int numthreads = 8;
@@ -1166,18 +1166,18 @@ int main(int argc, char *argv[]) {
         case 7:
             plotting = atoi(argv[6]);
         case 6:
-            n_ref_h = atoi(argv[5]);
+            final_h = atoi(argv[5]);
         case 5:
             initial_h = atoi(argv[4]);
         case 4:
-            n_ref_p = atoi(argv[3]);
+            final_p = atoi(argv[3]);
         case 3:
             initial_p = atoi(argv[2]);
         case 2:
             conf = EConfig(atoi(argv[1]));
     };
-    int final_p = initial_p + n_ref_p - 1;
-    int final_h = initial_h + n_ref_h - 1;
+    int n_ref_p = final_p - initial_p + 1;
+    int n_ref_h = final_h - initial_h + 1;
 
     std::string rootname;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
@@ -1437,7 +1437,14 @@ int main(int argc, char *argv[]) {
 
             std::cout << "Errors = " << Errors << std::endl;
 
-
+            an.CleanUp();
+            
+//            for (int i = meshvector.size()-1; i >= 0; i--){
+//                meshvector[i]->CleanUp();
+//                delete meshvector[i];
+//            }
+//            delete cmesh_m;
+//            delete gmesh;
         }
     }
 
