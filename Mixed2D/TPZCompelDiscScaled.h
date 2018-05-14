@@ -41,10 +41,7 @@ public:
     }
 
     /** @brief Default destructor */
-    virtual ~TPZCompElDiscScaled()
-    {
-        
-    }
+    virtual ~TPZCompElDiscScaled();
     
     /** @brief Return the shape functions scale */
     REAL Scale() const {

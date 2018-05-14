@@ -26,6 +26,9 @@ void TPZCompElDiscScaled::ComputeShape(TPZVec<REAL> &intpoint, TPZVec<REAL> &X,
     dphix*=fScale;
 }
 
+TPZCompElDiscScaled::~TPZCompElDiscScaled()
+{
+}
 
 
 

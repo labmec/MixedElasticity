@@ -615,7 +615,6 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
     std::set<int> materialids;
     materialids.insert(matID);
     //materialids.insert(3);
-    cmesh->AutoBuild(materialids);
     {
         gmesh->ResetReference();
         int64_t nel = gmesh->NElements();
@@ -631,6 +630,7 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
             gel->ResetReference();
         }
     }
+    
     //cmesh->LoadReferences();
     //    cmesh->ApproxSpace().CreateDisconnectedElements(false);
     //    cmesh->AutoBuild();
@@ -1252,6 +1252,8 @@ int main(int argc, char *argv[]) {
             ChangeInternalOrder(cmesh_S, InternalpOrder);
             TPZCompMesh *cmesh_U = CMesh_U(gmesh, InternalpOrder); //Creates the computational mesh for the displacement field
             TPZCompMesh *cmesh_P = CMesh_P(gmesh, RibpOrder, hx/nelx); //Creates the computational mesh for the rotation field
+            
+
             //TPZCompMesh *cmesh_m = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
             TPZCompMesh *cmesh_m = CMesh_m(gmesh, InternalpOrder);
             //TPZCompMesh *cmesh_m = CMesh_AxiS(gmesh, InternalpOrder,  Example);
@@ -1322,20 +1324,16 @@ int main(int argc, char *argv[]) {
                 an.Rhs().Print("R = ", filerhs, EMathematicaInput);
             }
 #endif
-            /*
-             REAL sumrhs = 0.;
-             TPZFMatrix<STATE> &rhs = an.Rhs();
-             for(int64_t i=0; i< rhs.Rows(); i++)
-             {
-             sumrhs += rhs(i,0);
-             }
-             std::cout << " sumrhs "  << sumrhs << std::endl;
-             std::cout << "Solving Matrix " << std::endl;
-             */
+
             std::cout << "Solving." << std::endl;
             an.Solve();
             std::cout << "Solved." << std::endl;
 
+            
+            {
+                TPZStepSolver<STATE> solver;
+                an.SetSolver(solver);
+            }
 #ifdef PZDEBUG
             if(0)
             {
@@ -1365,6 +1363,7 @@ int main(int argc, char *argv[]) {
                 an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
                 an.PostProcess(2);
             }
+            
 #ifdef PZDEBUG
             //Imprimindo vetor solução:
             {
@@ -1442,14 +1441,16 @@ int main(int argc, char *argv[]) {
 
             std::cout << "Errors = " << Errors << std::endl;
 
+            
             an.CleanUp();
             
-//            for (int i = meshvector.size()-1; i >= 0; i--){
-//                meshvector[i]->CleanUp();
-//                delete meshvector[i];
-//            }
-//            delete cmesh_m;
-//            delete gmesh;
+            delete cmesh_m;
+            for (int i = meshvector.size()-1; i >= 0; i--){
+                meshvector[i]->CleanUp();
+                delete meshvector[i];
+            }
+            delete gmesh;
+             
         }
     }
 
