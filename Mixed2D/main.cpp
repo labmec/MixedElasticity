@@ -1178,7 +1178,12 @@ int main(int argc, char *argv[]) {
     };
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
-
+    
+#ifdef USING_MKL
+    mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
+    mkl_set_num_threads(numthreads);
+#endif
+            
     std::string rootname;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
     double x0 = -1;
