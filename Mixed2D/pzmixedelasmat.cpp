@@ -1464,13 +1464,14 @@ void TPZMixedElasticityMaterial::Errors(TPZVec<REAL> &x, TPZVec<STATE> &u,
 TPZMixedElasticityMaterial::TPZMixedElasticityMaterial(const TPZMixedElasticityMaterial &copy) :
 TPZDiscontinuousGalerkin(copy),
 fE(copy.fE),
-fnu(copy.fnu) {
-    fForce[0] = copy.fForce[0];
-    fForce[1] = copy.fForce[1];
-    fPlaneStress = copy.fPlaneStress;
-    // Added by Philippe 2012
-    fPostProcIndex = copy.fPostProcIndex;
-
+fnu(copy.fnu),
+flambda(copy.flambda),
+fmu(copy.fmu),
+fForce(copy.fForce),
+fPlaneStress(copy.fPlaneStress),
+fDimension(copy.fDimension),
+fMatrixA(copy.fMatrixA),
+fAxisSymmetric(copy.fAxisSymmetric){
 }
 
 int TPZMixedElasticityMaterial::ClassId() const {

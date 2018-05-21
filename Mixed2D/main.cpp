@@ -429,8 +429,8 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     cmesh->SetAllCreateFunctionsHDiv(); //Creating H(div) functions:
 
     //Criando material cujo nSTATE = 2:
-    REAL E = 206.815026; //* @param E elasticity modulus
-    REAL nu = 0.; //* @param nu Poisson coefficient
+    REAL E = TElasticityExample1::fElast; //* @param E elasticity modulus
+    REAL nu = TElasticityExample1::fNu; //* @param nu Poisson coefficient
     REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
     int planeStress = 0.; //* @param plainstress = 1 \f$ indicates use of plain stress
@@ -499,8 +499,8 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
     cmesh->ApproxSpace().CreateDisconnectedElements(true);
 
     //Criando material cujo nSTATE = 2:
-    REAL E = 206.815026; //* @param E elasticity modulus
-    REAL nu = 0.; //* @param nu poisson coefficient
+    REAL E = TElasticityExample1::fElast; //* @param E elasticity modulus
+    REAL nu = TElasticityExample1::fNu; //* @param nu poisson coefficient
     REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
     REAL fy = -20.; //* @param fx forcing function \f$ -x = fx \f$
     int plain = 0.; //* @param plainstress = 1 \f$ indicates use of plainstress
@@ -865,24 +865,24 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     //    example.fProblemType = TElasticityExample1::EThiago;
     //    example.fStressState   = TElasticityExample1::EPlaneStrain;
 
-    REAL E = TElasticityExample1::fElast; // 206.815026; //* @param E elasticity modulus
-    REAL nu = TElasticityExample1::fNu; // 0.;//0.30400395; //* @param nu poisson coefficient
+    REAL E = TElasticityExample1::fElast; //* @param E elasticity modulus
+    REAL nu = TElasticityExample1::fNu; //* @param nu poisson coefficient
 
 
     REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
-    int plain = 0; //* @param plainstress = 1 \f$ indicates use of plainstress
+    int plainStress = 0; //* @param plainstress = 1 \f$ indicates use of plainstress
     if (TElasticityExample1::fStressState == TElasticityExample1::EPlaneStrain) {
-        plain = 0;
+        plainStress = 0;
     } else if (TElasticityExample1::fStressState == TElasticityExample1::EPlaneStress) {
-        plain = 1;
+        plainStress = 1;
     } else if (TElasticityExample1::fStressState == TElasticityExample1::EAxiSymmetric) {
-        plain = 0;
+        plainStress = 0;
     } else {
         DebugStop();
     }
 
-    TPZMixedElasticityMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
+    TPZMixedElasticityMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plainStress, dim);
 
     if (TElasticityExample1::fStressState == TElasticityExample1::EAxiSymmetric) {
         material->SetAxisSymmetric();
@@ -1180,7 +1180,7 @@ int main(int argc, char *argv[]) {
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
     
-#ifdef USING_MKL2
+#ifdef USING_MKL
     mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
     mkl_set_num_threads(numthreads);
 #endif
@@ -1301,7 +1301,7 @@ int main(int argc, char *argv[]) {
             cmesh_m_Hybrid->InitializeBlock();
             
             TPZAnalysis an(cmesh_m_Hybrid, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-#ifdef USING_MKL2
+#ifdef USING_MKL
             TPZSymetricSpStructMatrix matskl(cmesh_m_Hybrid);
 #else
             TPZSkylineStructMatrix matskl(cmesh_m_Hybrid); // asymmetric case ***
