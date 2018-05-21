@@ -75,6 +75,7 @@
 #include "TPZReadGIDGrid.h"
 #include "pzmultiphysicselement.h"
 #include "TPZMultiphysicsInterfaceEl.h"
+#include "TPZHybridizeHDiv.h"
 
 #include "pzgengrid.h"
 #include <cmath>
@@ -1179,7 +1180,7 @@ int main(int argc, char *argv[]) {
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
     
-#ifdef USING_MKL
+#ifdef USING_MKL2
     mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
     mkl_set_num_threads(numthreads);
 #endif
@@ -1248,55 +1249,62 @@ int main(int argc, char *argv[]) {
             TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
 #endif
             //Creating computational mesh:
-            TPZCompMesh *cmesh_S = CMesh_S(gmesh, RibpOrder); //Creates the computational mesh for the stress field
-            ChangeInternalOrder(cmesh_S, InternalpOrder);
-            TPZCompMesh *cmesh_U = CMesh_U(gmesh, InternalpOrder); //Creates the computational mesh for the displacement field
-            TPZCompMesh *cmesh_P = CMesh_P(gmesh, RibpOrder, hx/nelx); //Creates the computational mesh for the rotation field
+            TPZCompMesh *cmesh_S_HDiv = CMesh_S(gmesh, RibpOrder); //Creates the computational mesh for the stress field
+            ChangeInternalOrder(cmesh_S_HDiv, InternalpOrder);
+            TPZCompMesh *cmesh_U_HDiv = CMesh_U(gmesh, InternalpOrder); //Creates the computational mesh for the displacement field
+            TPZCompMesh *cmesh_P_HDiv = CMesh_P(gmesh, RibpOrder, hx/nelx); //Creates the computational mesh for the rotation field
             
 
-            //TPZCompMesh *cmesh_m = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
-            TPZCompMesh *cmesh_m = CMesh_m(gmesh, InternalpOrder);
-            //TPZCompMesh *cmesh_m = CMesh_AxiS(gmesh, InternalpOrder,  Example);
+            //TPZCompMesh *cmesh_m_HDiv = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
+            TPZCompMesh *cmesh_m_HDiv = CMesh_m(gmesh, InternalpOrder);
+            //TPZCompMesh *cmesh_m_HDiv = CMesh_AxiS(gmesh, InternalpOrder,  Example);
 #ifdef PZDEBUG
             {
                 std::ofstream filecS("MalhaC_S.txt"); //Prints the stress computational mesh in txt format
                 std::ofstream filecU("MalhaC_U.txt"); //Prints the displacement computational mesh in txt format
                 std::ofstream filecP("MalhaC_P.txt"); //Prints the rotation computational mesh in txt format
-                cmesh_S->Print(filecS);
-                cmesh_U->Print(filecU);
-                cmesh_P->Print(filecP);
+                cmesh_S_HDiv->Print(filecS);
+                cmesh_U_HDiv->Print(filecU);
+                cmesh_P_HDiv->Print(filecP);
             }
 #endif
 
-            TPZManVector<TPZCompMesh*, 3> meshvector(3);
-            meshvector[0] = cmesh_S;
-            meshvector[1] = cmesh_U;
-            meshvector[2] = cmesh_P;
-            TPZBuildMultiphysicsMesh::AddElements(meshvector, cmesh_m);
-            TPZBuildMultiphysicsMesh::AddConnects(meshvector, cmesh_m);
-            TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector, cmesh_m);
-            cmesh_m->LoadReferences();
+            TPZManVector<TPZCompMesh*, 3> meshvector_HDiv(3);
+            meshvector_HDiv[0] = cmesh_S_HDiv;
+            meshvector_HDiv[1] = cmesh_U_HDiv;
+            meshvector_HDiv[2] = cmesh_P_HDiv;
+            TPZBuildMultiphysicsMesh::AddElements(meshvector_HDiv, cmesh_m_HDiv);
+            TPZBuildMultiphysicsMesh::AddConnects(meshvector_HDiv, cmesh_m_HDiv);
+            TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector_HDiv, cmesh_m_HDiv);
+            cmesh_m_HDiv->LoadReferences();
 
-//            AddMultiphysicsInterfaces(*cmesh_m);
+//            AddMultiphysicsInterfaces(*cmesh_m_HDiv);
 
-            CreateCondensedElements(cmesh_m);
+            //CreateCondensedElements(cmesh_m_HDiv);
 
 #ifdef PZDEBUG
             std::ofstream fileg1("MalhaGeo2.txt");
             gmesh->Print(fileg1); //Prints the geometric mesh in txt format
 
             std::ofstream filecm("MalhaC_m.txt");
-            cmesh_m->Print(filecm); //Prints the multi-physics computational mesh in txt format
+            cmesh_m_HDiv->Print(filecm); //Prints the multi-physics computational mesh in txt format
 #endif
 
             //Solving the system:
             bool optimizeBandwidth = true;
-            cmesh_m->InitializeBlock();
-            TPZAnalysis an(cmesh_m, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-#ifdef USING_MKL
-            TPZSymetricSpStructMatrix matskl(cmesh_m);
+            cmesh_m_HDiv->InitializeBlock();
+            
+            TPZCompMesh * cmesh_m_Hybrid;
+            TPZManVector<TPZCompMesh*, 3> meshvector_Hybrid(3);
+            TPZHybridizeHDiv hybridizer;
+            tie(cmesh_m_Hybrid, meshvector_Hybrid) = hybridizer.Hybridize(cmesh_m_HDiv, meshvector_HDiv, false, -1.);
+            cmesh_m_Hybrid->InitializeBlock();
+            
+            TPZAnalysis an(cmesh_m_Hybrid, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
+#ifdef USING_MKL2
+            TPZSymetricSpStructMatrix matskl(cmesh_m_Hybrid);
 #else
-            TPZSkylineStructMatrix matskl(cmesh_m); // asymmetric case ***
+            TPZSkylineStructMatrix matskl(cmesh_m_Hybrid); // asymmetric case ***
 #endif
             matskl.SetNumThreads(numthreads);
             an.SetStructuralMatrix(matskl);
@@ -1304,7 +1312,7 @@ int main(int argc, char *argv[]) {
             step.SetDirect(ELDLt);
             an.SetSolver(step);
 
-            std::cout << "Assemble matrix with NDoF = " << cmesh_m->NEquations() << "." << std::endl;
+            std::cout << "Assemble matrix with NDoF = " << cmesh_m_Hybrid->NEquations() << "." << std::endl;
             an.Assemble(); //Assembles the global stiffness matrix (and load vector)
             std::cout << "Assemble finished." << std::endl;
 
@@ -1342,7 +1350,7 @@ int main(int argc, char *argv[]) {
 
             }
 #endif
-            TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(meshvector, cmesh_m);
+            TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(meshvector_Hybrid, cmesh_m_Hybrid);
 
             if (plotting) {
                 std::string plotfile;
@@ -1367,7 +1375,7 @@ int main(int argc, char *argv[]) {
 #ifdef PZDEBUG
             //Imprimindo vetor solução:
             {
-                TPZFMatrix<STATE> solucao = cmesh_m->Solution(); //Pegando o vetor de solução, alphaj
+                TPZFMatrix<STATE> solucao = cmesh_m_Hybrid->Solution(); //Pegando o vetor de solução, alphaj
                 std::ofstream solout("sol.nb");
                 solucao.Print("Sol", solout, EMathematicaInput); //Imprime na formatação do Mathematica
 
@@ -1379,7 +1387,7 @@ int main(int argc, char *argv[]) {
             //   matids.clear();
             //   matids.insert(-1);
             //   TPZManVector<STATE,3> result;
-            //  result = cmesh_m->Integrate("state",matids);
+            //  result = cmesh_m_HDiv->Integrate("state",matids);
             //  std::cout << "Sigma Y"  << result << std::endl;
 
 
@@ -1416,13 +1424,13 @@ int main(int argc, char *argv[]) {
                     break;
             }
             ErroOut << " *)\n";
-            ErroOut << "(* Number of Condensed equations " << cmesh_m->NEquations() << " *)" << std::endl;
-            ErroOut << "(* Number of equations before condensation " << cmesh_m->Solution().Rows() << " *)" << std::endl;
+            ErroOut << "(* Number of Condensed equations " << cmesh_m_Hybrid->NEquations() << " *)" << std::endl;
+            ErroOut << "(* Number of equations before condensation " << cmesh_m_Hybrid->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(example.Exact());
             an.SetThreadsForError(numthreads);
             bool store_errors = true;
-            cmesh_m->ElementSolution().Redim(cmesh_m->NElements(), 5);
+            cmesh_m_Hybrid->ElementSolution().Redim(cmesh_m_Hybrid->NElements(), 5);
             std::cout << "Computing errors." << std::endl;
             an.PostProcessError(Errors, store_errors, ErroOut);
             std::cout << "Computed errors." << std::endl;
@@ -1432,8 +1440,8 @@ int main(int argc, char *argv[]) {
             output[0] = h_level;
             output[1] = pref + 1;
             output[2] = InternalpOrder;
-            output[3] = cmesh_m->NEquations();
-            output[4] = cmesh_m->Solution().Rows();
+            output[3] = cmesh_m_Hybrid->NEquations();
+            output[4] = cmesh_m_Hybrid->Solution().Rows();
             for (int i = 0; i < Errors.size(); i++) {
                 output[5 + i] = Errors[i];
             }
@@ -1444,10 +1452,16 @@ int main(int argc, char *argv[]) {
             
             an.CleanUp();
             
-            delete cmesh_m;
-            for (int i = meshvector.size()-1; i >= 0; i--){
-                meshvector[i]->CleanUp();
-                delete meshvector[i];
+            delete cmesh_m_Hybrid;
+            for (int i = meshvector_Hybrid.size()-1; i >= 0; i--){
+                meshvector_Hybrid[i]->CleanUp();
+                delete meshvector_Hybrid[i];
+            }
+            
+            delete cmesh_m_HDiv;
+            for (int i = meshvector_HDiv.size()-1; i >= 0; i--){
+                meshvector_HDiv[i]->CleanUp();
+                delete meshvector_HDiv[i];
             }
             delete gmesh;
              
