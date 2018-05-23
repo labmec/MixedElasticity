@@ -404,8 +404,8 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
 
     //Printing geometric mesh:
 
-    ofstream bf("before.vtk");
-    TPZVTKGeoMesh::PrintGMeshVTK(gmesh, bf);
+    //ofstream bf("before.vtk");
+    //TPZVTKGeoMesh::PrintGMeshVTK(gmesh, bf);
     return gmesh;
 
 
