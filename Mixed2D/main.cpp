@@ -168,14 +168,15 @@ REAL AxiArea(TPZGeoMesh * gmesh, std::set<int> matids);
 STATE IntegrateBottom(TPZCompMesh *cmesh, int matid);
 
 enum EConfig {
-    EThiago = 0, EAxiSymmetric = 1, EThiagoPlus = 2, EAxiSymmetricPlus = 3
+    EThiago = 0, EAxiSymmetric = 1, EThiagoPlus = 2, EAxiSymmetricPlus = 3, EThiagoPlusPlus = 4
 };
 
-std::string ConfigRootname[4] = {
+std::string ConfigRootname[5] = {
     "Mixed",
     "Mixed_AxiSymmetric",
     "MixedPlus",
-    "Mixed_AxiSymmetricPlus"
+    "Mixed_AxiSymmetricPlus",
+    "MixedPlusPlus"
 };
 
 
@@ -1194,6 +1195,7 @@ int main(int argc, char *argv[]) {
     switch (conf) {
         case EThiago:
         case EThiagoPlus:
+        case EThiagoPlusPlus:
             TElasticityExample1::fProblemType = TElasticityExample1::EThiago;
             TElasticityExample1::fStressState = TElasticityExample1::EPlaneStrain;
             TElasticityExample1::fElast = 206.8150271873455;
@@ -1239,6 +1241,9 @@ int main(int argc, char *argv[]) {
             int InternalpOrder = pref + 1;
             if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
                 InternalpOrder = pref + 2;
+            }
+            if (conf == EThiagoPlusPlus) {
+                InternalpOrder = pref + 3;
             }
             TPZGeoMesh *gmesh = CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 
@@ -1398,7 +1403,7 @@ int main(int argc, char *argv[]) {
             sout << rootname;
             switch (elementType) {
                 case ETriangular:
-                    sout << "_triangle";
+                    sout << "_tria";
                     break;
                 case ESquare:
                     sout << "_quad";
