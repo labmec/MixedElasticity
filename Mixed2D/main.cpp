@@ -1321,7 +1321,7 @@ int main(int argc, char *argv[]) {
             an.Assemble(); //Assembles the global stiffness matrix (and load vector)
             std::cout << "Assemble finished." << std::endl;
 
-            TPZManVector<REAL, 3> Errors;
+            TPZManVector<REAL, 6> Errors;
             TElasticityExample1 example;
             an.SetExact(example.Exact());
             //            an.PostProcessError(Errors,std::cout);
@@ -1439,11 +1439,11 @@ int main(int argc, char *argv[]) {
             std::cout << "Computing errors." << std::endl;
             an.PostProcessError(Errors, store_errors, ErroOut);
             std::cout << "Computed errors." << std::endl;
-            ErroOut << "nelx ribporder internalporder - error_u - error_energy - error_sigma\n";
+            ErroOut << "nelx ribporder internalporder n_condensed - n_total - error_sigma - error_energy - error_div_sigma - error_u - error_r - error_as\n";
             ErroOut << "*)\n";
             TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
             output[0] = h_level;
-            output[1] = pref + 1;
+            output[1] = RibpOrder;
             output[2] = InternalpOrder;
             output[3] = cmesh_m_Hybrid->NEquations();
             output[4] = cmesh_m_Hybrid->Solution().Rows();

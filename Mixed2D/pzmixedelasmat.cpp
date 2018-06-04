@@ -1258,7 +1258,7 @@ void TPZMixedElasticityMaterial::Flux(TPZVec<REAL> &x, TPZVec<STATE> &Sol, TPZFM
 }
 
 int TPZMixedElasticityMaterial::NEvalErrors() {
-    return 5;
+    return 6;
 }
 
 void TPZMixedElasticityMaterial::Errors(TPZVec<TPZMaterialData> &data, TPZVec<STATE> &u_exact, TPZFMatrix<STATE> &du_exact, TPZVec<REAL> &errors) {
@@ -1371,6 +1371,8 @@ void TPZMixedElasticityMaterial::Errors(TPZVec<TPZMaterialData> &data, TPZVec<ST
     errors[2] = pow(divSigma[0]-divSigmaExact[0],2) + pow(divSigma[1]-divSigmaExact[1],2);
 
     errors[4] = pow(rotation-rotationExact,2);
+    
+    errors[5] = pow(SigmaV[Exy]-SigmaV[Eyx],2);
     
     //    std::cout << "x " << data[0].x << std::endl;
     //    std::cout << "disp " << u_exact << std::endl;
