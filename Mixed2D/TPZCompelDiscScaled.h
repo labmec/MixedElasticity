@@ -33,13 +33,18 @@ public:
     
     /** @brief Constructor of the discontinuous element associated with geometric element */
     TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref,int64_t &index) : TPZCompElDisc(mesh,ref,index){
-        ComputeScale();
+        //ComputeScale();
     }
 
     /** @brief Copy constructor */
     TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy) : TPZCompElDisc(mesh,copy), fScale(copy.fScale){
     }
 
+    /** @brief Copy constructor */
+    TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy, int64_t &index) : TPZCompElDisc(mesh, copy, index), fScale(copy.fScale) {
+        
+    }
+    
     /** @brief Default destructor */
     virtual ~TPZCompElDiscScaled();
     
@@ -57,8 +62,13 @@ public:
     virtual void ComputeShape(TPZVec<REAL> &intpoint, TPZVec<REAL> &X,
                                      TPZFMatrix<REAL> &jacobian, TPZFMatrix<REAL> &axes,
                                      REAL &detjac, TPZFMatrix<REAL> &jacinv,
-                              TPZFMatrix<REAL> &phi, TPZFMatrix<REAL> &dphi, TPZFMatrix<REAL> &dphix);
+                              TPZFMatrix<REAL> &phi, TPZFMatrix<REAL> &dphi, TPZFMatrix<REAL> &dphix);    
 
+    
+    virtual TPZCompEl *Clone(TPZCompMesh &mesh) const {
+            return new TPZCompElDiscScaled(mesh,*this);
+    }
+    
 };
 
 #endif /* TPZCompelDiscScaled_h */
