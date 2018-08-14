@@ -1305,12 +1305,14 @@ int main(int argc, char *argv[]) {
                 InternalpOrder = pref + 3;
             }
             int displacementPOrder;
+            int rotationPOrder;
             if (elementType == ETriangular) {
                 displacementPOrder = InternalpOrder - 1;
+                rotationPOrder = InternalpOrder - 1;
             } else {
                 displacementPOrder = InternalpOrder;
+                rotationPOrder = InternalpOrder;
             }
-            int rotationPOrder = InternalpOrder;
             TPZGeoMesh *gmesh = CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 
 #ifdef PZDEBUG
