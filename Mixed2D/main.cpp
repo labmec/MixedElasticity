@@ -1296,23 +1296,16 @@ int main(int argc, char *argv[]) {
             unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
             unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
-            unsigned int RibpOrder = pref + 1; //Polynomial order of the approximation
-            int InternalpOrder = pref + 1;
+            unsigned int stressPOrder = pref + 1; //Polynomial order of the approximation
+            int stressInternalPOrder = stressPOrder; //k
             if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
-                InternalpOrder = pref + 2;
+                stressInternalPOrder += 1; //k+1
             }
             if (conf == EThiagoPlusPlus) {
-                InternalpOrder = pref + 3;
+                stressInternalPOrder += 2; //k+2
             }
-            int displacementPOrder;
-            int rotationPOrder;
-            if (elementType == ETriangular) {
-                displacementPOrder = InternalpOrder - 1;
-                rotationPOrder = InternalpOrder - 1;
-            } else {
-                displacementPOrder = InternalpOrder;
-                rotationPOrder = InternalpOrder;
-            }
+            int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
+            int rotationPOrder = displacementPOrder;
             TPZGeoMesh *gmesh = CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 
 #ifdef PZDEBUG
@@ -1322,14 +1315,14 @@ int main(int argc, char *argv[]) {
             TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
 #endif
             //Creating computational mesh:
-            TPZCompMesh *cmesh_S_HDiv = CMesh_S(gmesh, RibpOrder); //Creates the computational mesh for the stress field
-            ChangeInternalOrder(cmesh_S_HDiv, InternalpOrder);
+            TPZCompMesh *cmesh_S_HDiv = CMesh_S(gmesh, stressPOrder); //Creates the computational mesh for the stress field
+            ChangeInternalOrder(cmesh_S_HDiv, stressInternalPOrder);
             TPZCompMesh *cmesh_U_HDiv = CMesh_U(gmesh, displacementPOrder); //Creates the computational mesh for the displacement field
             TPZCompMesh *cmesh_P_HDiv = CMesh_P(gmesh, rotationPOrder, hx / nelx); //Creates the computational mesh for the rotation field
 
 
             //TPZCompMesh *cmesh_m_HDiv = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
-            TPZCompMesh *cmesh_m_HDiv = CMesh_m(gmesh, InternalpOrder);
+            TPZCompMesh *cmesh_m_HDiv = CMesh_m(gmesh, stressInternalPOrder);
             //TPZCompMesh *cmesh_m_HDiv = CMesh_AxiS(gmesh, InternalpOrder,  Example);
 #ifdef PZDEBUG
             {
@@ -1478,7 +1471,7 @@ int main(int argc, char *argv[]) {
                     sout << "_trap";
                     break;
             }
-            sout << "_" << RibpOrder << "_Error.nb";
+            sout << "_" << stressPOrder << "_Error.nb";
             ofstream ErroOut(sout.str(), std::ios::app);
             ErroOut << "(* Type of simulation " << rootname << " *)\n";
             ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
@@ -1509,8 +1502,8 @@ int main(int argc, char *argv[]) {
             ErroOut << "*)\n";
             TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
             output[0] = h_level;
-            output[1] = RibpOrder;
-            output[2] = InternalpOrder;
+            output[1] = stressPOrder;
+            output[2] = stressInternalPOrder;
             output[3] = cmesh_m_Hybrid->NEquations();
             output[4] = cmesh_m_Hybrid->Solution().Rows();
             for (int i = 0; i < Errors.size(); i++) {
