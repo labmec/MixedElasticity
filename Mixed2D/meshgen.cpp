@@ -466,7 +466,7 @@ void TElasticityExample2::uxy(const TPZVec<TVar> &x, TPZVec<TVar> &disp) {
 }
 
 template<class TVar>
-void TLaplaceExample1::uxy(const TPZVec<TVar> &x, TPZVec<TVar> &disp) {
+void TLaplaceExample::uxy(const TPZVec<TVar> &x, TPZVec<TVar> &disp) {
     disp[0] = sin((TVar) M_PI * x[0]) * sin((TVar) M_PI * x[1]);
     TVar r = sqrt(x[0] * x[0] + x[1] * x[1]);
     TVar atanco = (r - (TVar) 0.5)*100.;
@@ -476,7 +476,7 @@ void TLaplaceExample1::uxy(const TPZVec<TVar> &x, TPZVec<TVar> &disp) {
 }
 
 template<>
-void TLaplaceExample1::uxy(const TPZVec<FADFADREAL > &x, TPZVec<FADFADREAL > &disp) {
+void TLaplaceExample::uxy(const TPZVec<FADFADREAL > &x, TPZVec<FADFADREAL > &disp) {
     //  disp[0] = FADsin((FADFADREAL)(M_PI)*x[0])*FADsin((FADFADREAL)(M_PI)*x[1]);
     FADFADREAL r = FADsqrt(x[0] * x[0] + x[1] * x[1]);
     FADFADREAL atanco = (r - (FADFADREAL) 0.5)*100.;
@@ -487,11 +487,11 @@ void TLaplaceExample1::uxy(const TPZVec<FADFADREAL > &x, TPZVec<FADFADREAL > &di
 }
 
 template<class TVar>
-void TLaplaceExample1::Permeability(const TPZVec<TVar> &x, TVar &Perm) {
+void TLaplaceExample::Permeability(const TPZVec<TVar> &x, TVar &Perm) {
     Perm = (TVar) (1.);
 }
 
-void TLaplaceExample1::PermeabilityDummy(const TPZVec<REAL> &x, TPZVec<STATE> &result, TPZFMatrix<STATE> &deriv) {
+void TLaplaceExample::PermeabilityDummy(const TPZVec<REAL> &x, TPZVec<STATE> &result, TPZFMatrix<STATE> &deriv) {
     TPZManVector<STATE, 3> xloc(x.size());
     for (auto i : xloc) {
         xloc[i] = x[i];
@@ -506,7 +506,7 @@ void TLaplaceExample1::PermeabilityDummy(const TPZVec<REAL> &x, TPZVec<STATE> &r
 }
 
 template<class TVar>
-void TLaplaceExample1::graduxy(const TPZVec<TVar> &x, TPZVec<TVar> &grad) {
+void TLaplaceExample::graduxy(const TPZVec<TVar> &x, TPZVec<TVar> &grad) {
     TPZManVector<Fad<TVar>, 3> xfad(x.size());
     for (int i = 0; i < 2; i++) {
         Fad<TVar> temp = Fad<TVar>(2, i, x[i]);
@@ -521,7 +521,7 @@ void TLaplaceExample1::graduxy(const TPZVec<TVar> &x, TPZVec<TVar> &grad) {
     }
 }
 
-void TLaplaceExample1::GradU(const TPZVec<REAL> &x, TPZVec<STATE> &u, TPZFMatrix<STATE> &gradu) {
+void TLaplaceExample::GradU(const TPZVec<REAL> &x, TPZVec<STATE> &u, TPZFMatrix<STATE> &gradu) {
     TPZManVector<Fad<REAL>, 3> xfad(x.size());
     for (int i = 0; i < 2; i++) {
         Fad<REAL> temp = Fad<REAL>(2, i, x[i]);
@@ -541,7 +541,7 @@ void TLaplaceExample1::GradU(const TPZVec<REAL> &x, TPZVec<STATE> &u, TPZFMatrix
 }
 
 template<class TVar>
-void TLaplaceExample1::Sigma(const TPZVec<TVar> &x, TPZVec<TVar> &sigma) {
+void TLaplaceExample::Sigma(const TPZVec<TVar> &x, TPZVec<TVar> &sigma) {
     TPZManVector<TVar, 3> grad;
     TVar Perm;
     Permeability(x, Perm);
@@ -553,7 +553,7 @@ void TLaplaceExample1::Sigma(const TPZVec<TVar> &x, TPZVec<TVar> &sigma) {
 }
 
 template<class TVar>
-void TLaplaceExample1::DivSigma(const TPZVec<TVar> &x, TVar &divsigma) {
+void TLaplaceExample::DivSigma(const TPZVec<TVar> &x, TVar &divsigma) {
     TPZManVector<Fad<TVar>, 3> xfad(x.size());
     for (int i = 0; i < 2; i++) {
         xfad[i] = Fad<TVar>(2, i, x[i]);
@@ -564,14 +564,14 @@ void TLaplaceExample1::DivSigma(const TPZVec<TVar> &x, TVar &divsigma) {
 
 }
 
-TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample1::ForcingFunction() {
+TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample::ForcingFunction() {
     TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(Force,0);
     dummy->SetPolynomialOrder(5);
     TPZAutoPointer<TPZFunction<STATE> > result(dummy);
     return result;
 }
 
-TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample1::ValueFunction() {
+TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample::ValueFunction() {
     TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(GradU,0);
     dummy->SetPolynomialOrder(5);
     TPZAutoPointer<TPZFunction<STATE> > result(dummy);
@@ -579,7 +579,7 @@ TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample1::ValueFunction() {
 
 }
 
-TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample1::ConstitutiveLawFunction() {
+TPZAutoPointer<TPZFunction<STATE> > TLaplaceExample::ConstitutiveLawFunction() {
     TPZAutoPointer<TPZFunction<STATE> > result;
     TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(PermeabilityDummy,0);
     dummy->SetPolynomialOrder(4);

@@ -1,6 +1,6 @@
 /**
  * @file
- * @brief Contains the TPZMixedElasticityMaterial class which implements a two dimensional elastic material in plane stress or strain.
+ * @brief Contains the TPZMixedElasticityMaterialLocal class which implements a two dimensional elastic material in plane stress or strain.
  */
 
 #ifndef MIXEDELASMATHPP
@@ -15,7 +15,7 @@
  * @ingroup material
  * @brief This class implements a two dimensional elastic material in plane stress or strain
  */
-class TPZMixedElasticityMaterial : public TPZDiscontinuousGalerkin {
+class TPZMixedElasticityMaterialLocal : public TPZDiscontinuousGalerkin {
 public:
 
     enum MVoigt {
@@ -23,7 +23,7 @@ public:
     };
 
     /** @brief Default constructor */
-    TPZMixedElasticityMaterial();
+    TPZMixedElasticityMaterialLocal();
     /** 
      * @brief Creates an elastic material with:
      * @param id material id
@@ -33,14 +33,14 @@ public:
      * @param fy forcing function \f$ -y = fy \f$
      * @param plainstress \f$ plainstress = 1 \f$ indicates use of plainstress
      */
-    TPZMixedElasticityMaterial(int id, REAL E, REAL nu, REAL fx, REAL fy, int planestress = 1, int fDimension = 1);
+    TPZMixedElasticityMaterialLocal(int id, REAL E, REAL nu, REAL fx, REAL fy, int planestress = 1, int fDimension = 1);
 
     /// dimension of the material
 
-    TPZMixedElasticityMaterial(int id);
+    TPZMixedElasticityMaterialLocal(int id);
 
-    /** @brief Copies the data of one TPZMixedElasticityMaterial object to another */
-    TPZMixedElasticityMaterial(const TPZMixedElasticityMaterial &copy);
+    /** @brief Copies the data of one TPZMixedElasticityMaterialLocal object to another */
+    TPZMixedElasticityMaterialLocal(const TPZMixedElasticityMaterialLocal &copy);
 
 
     int VariableIndex(const std::string &name);
@@ -75,11 +75,11 @@ public:
 
     /** @brief Creates a new material from the current object   ??*/
     virtual TPZMaterial * NewMaterial() {
-        return new TPZMixedElasticityMaterial(*this);
+        return new TPZMixedElasticityMaterialLocal(*this);
     }
 
     /** @brief Default destructor */
-    virtual ~TPZMixedElasticityMaterial();
+    virtual ~TPZMixedElasticityMaterialLocal();
 
     /**
      * @brief Set parameters of elastic material:
@@ -147,7 +147,7 @@ public:
 
     /** @brief Returns the material name*/
     std::string Name() {
-        return "TPZMixedElasticityMaterial";
+        return "TPZMixedElasticityMaterialLocal";
     }
 
     /** @brief Returns the number of components which form the flux function */

@@ -7,6 +7,12 @@ add_executable(MixedElasticitySquare ${Mymain} ${sources})
 
 target_link_libraries(MixedElasticitySquare pz)
 
+set(MymainOsc main_MixedElastOscillat.cpp )
+
+add_executable(MixedElasticityOscillatory ${MymainOsc} ${sources})
+
+target_link_libraries(MixedElasticityOscillatory pz ${OpenCV_LIBS})
+
 set(MymainG mainGirkmann.cpp ${sources} ${headers})
 
 add_executable(MixedElasticityGirkmann ${MymainG})

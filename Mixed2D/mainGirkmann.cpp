@@ -179,13 +179,13 @@ int main(int argc, char *argv[]) {
 
     TPZGmshReader Girkmann;
 
-    Girkmann.fPZMaterialId[2]["ELASTICITY1"] = matID;
-    Girkmann.fPZMaterialId[2]["ELASTICITY2"] = matID2;
-    Girkmann.fPZMaterialId[1]["SUPPORT"] = matBCbott;
-    Girkmann.fPZMaterialId[1]["ZERO"] = matBCZeroTraction;
-    Girkmann.fPZMaterialId[1]["SYMMETRY"] = matBCsymmetry;
-    Girkmann.fPZMaterialId[1]["MOMENT"] = matMoment;
-    Girkmann.fPZMaterialId[0]["POINTBC"] = matPoint;
+    Girkmann.GetDimNamePhysical()[2]["ELASTICITY1"] = matID;
+    Girkmann.GetDimNamePhysical()[2]["ELASTICITY2"] = matID2;
+    Girkmann.GetDimNamePhysical()[1]["SUPPORT"] = matBCbott;
+    Girkmann.GetDimNamePhysical()[1]["ZERO"] = matBCZeroTraction;
+    Girkmann.GetDimNamePhysical()[1]["SYMMETRY"] = matBCsymmetry;
+    Girkmann.GetDimNamePhysical()[1]["MOMENT"] = matMoment;
+    Girkmann.GetDimNamePhysical()[0]["POINTBC"] = matPoint;
 
     /*
     Girkmann.fPZMaterialId[2]["ELASTICITY1"] = 1;

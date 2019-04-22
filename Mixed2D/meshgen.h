@@ -105,14 +105,14 @@ struct TElasticityExample2 : public TElasticityExample1 {
     static void uxy(const TPZVec<TVar> &x, TPZVec<TVar> &disp);
 };
 
-struct TLaplaceExample1 : public TAnalyticSolution {
+struct TLaplaceExample : public TAnalyticSolution {
     virtual TPZAutoPointer<TPZFunction<STATE> > ForcingFunction();
 
     virtual TPZAutoPointer<TPZFunction<STATE> > ValueFunction();
 
     virtual TPZAutoPointer<TPZFunction<STATE> > ConstitutiveLawFunction();
 
-    virtual ~TLaplaceExample1() {
+    virtual ~TLaplaceExample() {
 
     }
 

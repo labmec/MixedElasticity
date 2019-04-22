@@ -1,6 +1,6 @@
 /**
  * @file
- * @brief Contains implementations of the TPZMixedElasticityMaterial methods.
+ * @brief Contains implementations of the TPZMixedElasticityMaterialLocal methods.
  */
 
 #include "pzmixedelasmat.h"
@@ -22,7 +22,7 @@ static LoggerPtr logdata(Logger::getLogger("pz.mixedelasticity"));
 #include <fstream>
 using namespace std;
 
-TPZMixedElasticityMaterial::TPZMixedElasticityMaterial() : TPZDiscontinuousGalerkin(0) {
+TPZMixedElasticityMaterialLocal::TPZMixedElasticityMaterialLocal() : TPZDiscontinuousGalerkin(0) {
     fE = -1.; // Young modulus
     fnu = -1.; // Poisson coefficient
     fForce[0] = 0.; // X component of the body force
@@ -36,7 +36,7 @@ TPZMixedElasticityMaterial::TPZMixedElasticityMaterial() : TPZDiscontinuousGaler
     fMatrixA = 0.;
 }
 
-TPZMixedElasticityMaterial::TPZMixedElasticityMaterial(int id) : TPZDiscontinuousGalerkin(id) {
+TPZMixedElasticityMaterialLocal::TPZMixedElasticityMaterialLocal(int id) : TPZDiscontinuousGalerkin(id) {
     fE = -1.; // Young modulus
     fnu = -1.; // Poisson coefficient
     fForce[0] = 0.; // X component of the body force
@@ -50,7 +50,7 @@ TPZMixedElasticityMaterial::TPZMixedElasticityMaterial(int id) : TPZDiscontinuou
     fMatrixA = 0.;
 }
 
-TPZMixedElasticityMaterial::TPZMixedElasticityMaterial(int num, REAL E, REAL nu, REAL fx, REAL fy, int planestress, int fdimension) : TPZDiscontinuousGalerkin(num), fDimension(fdimension) {
+TPZMixedElasticityMaterialLocal::TPZMixedElasticityMaterialLocal(int num, REAL E, REAL nu, REAL fx, REAL fy, int planestress, int fdimension) : TPZDiscontinuousGalerkin(num), fDimension(fdimension) {
     this->SetElasticity(E, nu);
     fForce[0] = fx; // X component of the body force
     fForce[1] = fy; // Y component of the body force
@@ -58,10 +58,10 @@ TPZMixedElasticityMaterial::TPZMixedElasticityMaterial(int num, REAL E, REAL nu,
     fPostProcIndex = 0;
 }
 
-TPZMixedElasticityMaterial::~TPZMixedElasticityMaterial() {
+TPZMixedElasticityMaterialLocal::~TPZMixedElasticityMaterialLocal() {
 }
 
-void TPZMixedElasticityMaterial::FillDataRequirements(TPZVec<TPZMaterialData > &datavec) {
+void TPZMixedElasticityMaterialLocal::FillDataRequirements(TPZVec<TPZMaterialData > &datavec) {
     int nref = datavec.size();
     for (int i = 0; i < nref; i++) {
         datavec[i].SetAllRequirements(false);
@@ -71,7 +71,7 @@ void TPZMixedElasticityMaterial::FillDataRequirements(TPZVec<TPZMaterialData > &
     }
 }
 
-int TPZMixedElasticityMaterial::NStateVariables() {
+int TPZMixedElasticityMaterialLocal::NStateVariables() {
     return 2;
 }
 
@@ -79,7 +79,7 @@ int TPZMixedElasticityMaterial::NStateVariables() {
 
 // Divergence on deformed element
 
-void TPZMixedElasticityMaterial::ComputeDivergenceOnDeformed(TPZVec<TPZMaterialData> &datavec, TPZFMatrix<STATE> &DivergenceofPhi) {
+void TPZMixedElasticityMaterialLocal::ComputeDivergenceOnDeformed(TPZVec<TPZMaterialData> &datavec, TPZFMatrix<STATE> &DivergenceofPhi) {
     //itapopo conferir esse método. Foi copiado do TPZDarcyFlow3D
     int sigmaBlock = 0;
 
@@ -146,7 +146,7 @@ void TPZMixedElasticityMaterial::ComputeDivergenceOnDeformed(TPZVec<TPZMaterialD
 
 }
 
-void TPZMixedElasticityMaterial::ElasticityModulusTensor(TPZFMatrix<STATE> &MatrixElast) {
+void TPZMixedElasticityMaterialLocal::ElasticityModulusTensor(TPZFMatrix<STATE> &MatrixElast) {
     //Matrix modulus Voigt notation:
     MatrixElast.Redim(4, 4);
     if (!fPlaneStress) {
@@ -168,7 +168,7 @@ void TPZMixedElasticityMaterial::ElasticityModulusTensor(TPZFMatrix<STATE> &Matr
     }
 }
 
-void TPZMixedElasticityMaterial::ComputeDeformationVector(TPZVec<STATE> &PhiStress, TPZVec<STATE> &APhiStress) {
+void TPZMixedElasticityMaterialLocal::ComputeDeformationVector(TPZVec<STATE> &PhiStress, TPZVec<STATE> &APhiStress) {
     TPZFNMatrix<16, STATE> MatrixElast(4, 4, 0.);
     ElasticityModulusTensor(MatrixElast);
 
@@ -180,7 +180,7 @@ void TPZMixedElasticityMaterial::ComputeDeformationVector(TPZVec<STATE> &PhiStre
     }
 }
 
-void TPZMixedElasticityMaterial::ComputeStressVector(TPZVec<STATE> &Deformation, TPZVec<STATE> &Stress) {
+void TPZMixedElasticityMaterialLocal::ComputeStressVector(TPZVec<STATE> &Deformation, TPZVec<STATE> &Stress) {
     if (fPlaneStress) {
         Stress[Exx] = fE / (1 - fnu * fnu)*(Deformation[Exx] + fnu * Deformation[Eyy]);
         Stress[Eyy] = fE / (1. - fnu * fnu)*(fnu * Deformation[Exx] + Deformation[Eyy]);
@@ -194,7 +194,7 @@ void TPZMixedElasticityMaterial::ComputeStressVector(TPZVec<STATE> &Deformation,
     }
 }
 
-void TPZMixedElasticityMaterial::Print(std::ostream &out) {
+void TPZMixedElasticityMaterialLocal::Print(std::ostream &out) {
     out << "name of material : " << Name() << "\n";
     out << "properties : \n";
     out << "\tE   = " << fE << endl;
@@ -203,7 +203,7 @@ void TPZMixedElasticityMaterial::Print(std::ostream &out) {
 }
 
 /// Transform a tensor to a Voigt notation
-void TPZMixedElasticityMaterial::ToVoigt(TPZFMatrix<STATE> &S, TPZVec<STATE> &Svoigt) {
+void TPZMixedElasticityMaterialLocal::ToVoigt(TPZFMatrix<STATE> &S, TPZVec<STATE> &Svoigt) {
     Svoigt[Exx] = S(0, 0);
     Svoigt[Exy] = S(0, 1);
     Svoigt[Eyx] = S(1, 0);
@@ -211,14 +211,14 @@ void TPZMixedElasticityMaterial::ToVoigt(TPZFMatrix<STATE> &S, TPZVec<STATE> &Sv
 }
 
 /// Transform a Voigt notation to a tensor
-void TPZMixedElasticityMaterial::FromVoigt(TPZVec<STATE> &Svoigt, TPZFMatrix<STATE> &S) {
+void TPZMixedElasticityMaterialLocal::FromVoigt(TPZVec<STATE> &Svoigt, TPZFMatrix<STATE> &S) {
     S(0, 0) = Svoigt[Exx];
     S(0, 1) = Svoigt[Exy];
     S(1, 0) = Svoigt[Eyx];
     S(1, 1) = Svoigt[Eyy];
 }
 
-void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
+void TPZMixedElasticityMaterialLocal::Contribute(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
     if (datavec[0].fVecShapeIndex.size() == 0) {
         FillVecShapeIndex(datavec[0]);
     }
@@ -409,7 +409,7 @@ void TPZMixedElasticityMaterial::Contribute(TPZVec<TPZMaterialData> &datavec, RE
     //    ek.Print("K1 = ",filestiff,EMathematicaInput);
 }
 
-void TPZMixedElasticityMaterial::Contribute(TPZMaterialData &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
+void TPZMixedElasticityMaterialLocal::Contribute(TPZMaterialData &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
     TPZMaterialData::MShapeFunctionType shapetype = data.fShapeType;
     if (shapetype == data.EVecShape) {
         DebugStop();
@@ -432,7 +432,7 @@ void TPZMixedElasticityMaterial::Contribute(TPZMaterialData &data, REAL weight, 
     ekr = ek.Rows();
     ekc = ek.Cols();
     if (phc != 1 || dphr != 2 || phrU != dphc) {
-        PZError << "\nTPZMixedElasticityMaterial.contr, inconsistent input data : \n" <<
+        PZError << "\nTPZMixedElasticityMaterialLocal.contr, inconsistent input data : \n" <<
                 "phi.Cols() = " << phi.Cols() << " dphi.Cols() = " << dphiU.Cols() <<
                 " phi.Rows = " << phi.Rows() << " dphi.Rows = " <<
                 dphiU.Rows() << "\nek.Rows() = " << ek.Rows() << " ek.Cols() = "
@@ -493,12 +493,12 @@ void TPZMixedElasticityMaterial::Contribute(TPZMaterialData &data, REAL weight, 
     }
 }
 
-void TPZMixedElasticityMaterial::FillDataRequirements(TPZMaterialData &data) {
+void TPZMixedElasticityMaterialLocal::FillDataRequirements(TPZMaterialData &data) {
     data.fNeedsSol = true;
     data.fNeedsNormal = false;
 }
 
-void TPZMixedElasticityMaterial::FillBoundaryConditionDataRequirement(int type, TPZMaterialData &data) {
+void TPZMixedElasticityMaterialLocal::FillBoundaryConditionDataRequirement(int type, TPZMaterialData &data) {
     data.fNeedsSol = false;
     data.fNeedsNormal = false;
     if (type == 4 || type == 5 || type == 6) {
@@ -506,7 +506,7 @@ void TPZMixedElasticityMaterial::FillBoundaryConditionDataRequirement(int type, 
     }
 }
 
-void TPZMixedElasticityMaterial::ContributeBC(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCond &bc) {
+void TPZMixedElasticityMaterialLocal::ContributeBC(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCond &bc) {
     if (datavec[0].phi.Rows() != 0 && datavec[0].fShapeType != TPZMaterialData::EScalarShape) {
         DebugStop();
     }
@@ -607,7 +607,7 @@ void TPZMixedElasticityMaterial::ContributeBC(TPZVec<TPZMaterialData> &datavec, 
     } // 1 Val1 : a leitura é 00 01 10 11
 }
 
-void TPZMixedElasticityMaterial::ContributeBC(TPZMaterialData &data, REAL weight,
+void TPZMixedElasticityMaterialLocal::ContributeBC(TPZMaterialData &data, REAL weight,
         TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCond &bc) {
 
 
@@ -767,7 +767,7 @@ void TPZMixedElasticityMaterial::ContributeBC(TPZMaterialData &data, REAL weight
 }
 
 /** Returns the variable index associated with the name. */
-int TPZMixedElasticityMaterial::VariableIndex(const std::string &name) {
+int TPZMixedElasticityMaterialLocal::VariableIndex(const std::string &name) {
     if (!strcmp("displacement", name.c_str())) return 9;
     if (!strcmp("Displacement", name.c_str())) return 9; //function U ***
     if (!strcmp("DisplacementMem", name.c_str())) return 9;
@@ -804,7 +804,7 @@ int TPZMixedElasticityMaterial::VariableIndex(const std::string &name) {
 }
 
 /** Returns the number of variables associated with the variable indexed by var. */
-int TPZMixedElasticityMaterial::NSolutionVariables(int var) {
+int TPZMixedElasticityMaterialLocal::NSolutionVariables(int var) {
     switch (var) {
         case 0:
             return 2;
@@ -846,7 +846,7 @@ int TPZMixedElasticityMaterial::NSolutionVariables(int var) {
     }
 }
 
-void TPZMixedElasticityMaterial::Solution(TPZMaterialData &data, int var, TPZVec<STATE> &Solout) {
+void TPZMixedElasticityMaterialLocal::Solution(TPZMaterialData &data, int var, TPZVec<STATE> &Solout) {
     int numbersol = data.dsol.size();
     int ipos = 0;
     if (fPostProcIndex < numbersol) {
@@ -983,7 +983,7 @@ void TPZMixedElasticityMaterial::Solution(TPZMaterialData &data, int var, TPZVec
                 Solout[Eyx] = TauXY;
                 return;
             }
-            cout << "Very critical error TPZMixedElasticityMaterial::Solution\n";
+            cout << "Very critical error TPZMixedElasticityMaterialLocal::Solution\n";
             exit(-1);
             //         Solout[0] /= 0.;
             break;
@@ -1050,7 +1050,7 @@ void TPZMixedElasticityMaterial::Solution(TPZMaterialData &data, int var, TPZVec
 }
 
 /** @brief Returns the solution associated with the var index based on the finite element approximation */
-void TPZMixedElasticityMaterial::Solution(TPZVec<TPZMaterialData> &data, int var, TPZVec<STATE> &Solout) {
+void TPZMixedElasticityMaterialLocal::Solution(TPZVec<TPZMaterialData> &data, int var, TPZVec<STATE> &Solout) {
 #ifdef PZDEBUG
     if (data.size() != 3) {
         DebugStop();
@@ -1183,7 +1183,7 @@ void TPZMixedElasticityMaterial::Solution(TPZVec<TPZMaterialData> &data, int var
 
 ////////////////////////////////////////////////////////////////////
 
-STATE TPZMixedElasticityMaterial::Inner(TPZFMatrix<STATE> &S, TPZFMatrix<STATE> &T) {
+STATE TPZMixedElasticityMaterialLocal::Inner(TPZFMatrix<STATE> &S, TPZFMatrix<STATE> &T) {
     //inner product of two tensors
 #ifdef DEBUG
     if (S.Rows() != S.Cols() || T.Cols() != T.Rows() || S.Rows() != T.Rows()) {
@@ -1203,7 +1203,7 @@ STATE TPZMixedElasticityMaterial::Inner(TPZFMatrix<STATE> &S, TPZFMatrix<STATE> 
 ////////////////////////////////////////////////////////////////////
 
 template <typename TVar>
-TVar TPZMixedElasticityMaterial::InnerVec(const TPZVec<TVar> &S, const TPZVec<TVar> &T) {
+TVar TPZMixedElasticityMaterialLocal::InnerVec(const TPZVec<TVar> &S, const TPZVec<TVar> &T) {
     //inner product of two vectors
 #ifdef DEBUG
     if (S.size() != T.size()) {
@@ -1218,7 +1218,7 @@ TVar TPZMixedElasticityMaterial::InnerVec(const TPZVec<TVar> &S, const TPZVec<TV
 }
 
 ////////////////////////////////////////////////////////////////////
-STATE TPZMixedElasticityMaterial::Tr(TPZFMatrix<REAL> &GradU) {
+STATE TPZMixedElasticityMaterialLocal::Tr(TPZFMatrix<REAL> &GradU) {
 
 #ifdef DEBUG
     if (GradU.Rows() != GradU.Cols()) {
@@ -1238,7 +1238,7 @@ STATE TPZMixedElasticityMaterial::Tr(TPZFMatrix<REAL> &GradU) {
 
 /// transform a H1 data structure to a vector data structure
 
-void TPZMixedElasticityMaterial::FillVecShapeIndex(TPZMaterialData &data) {
+void TPZMixedElasticityMaterialLocal::FillVecShapeIndex(TPZMaterialData &data) {
     data.fNormalVec.Resize(fDimension, fDimension);
     data.fNormalVec.Identity();
     data.fVecShapeIndex.Resize(fDimension * data.phi.Rows());
@@ -1250,18 +1250,18 @@ void TPZMixedElasticityMaterial::FillVecShapeIndex(TPZMaterialData &data) {
     }
 }
 
-void TPZMixedElasticityMaterial::Flux(TPZVec<REAL> &x, TPZVec<STATE> &Sol, TPZFMatrix<STATE> &DSol, TPZFMatrix<REAL> &axes, TPZVec<STATE> &flux) {
+void TPZMixedElasticityMaterialLocal::Flux(TPZVec<REAL> &x, TPZVec<STATE> &Sol, TPZFMatrix<STATE> &DSol, TPZFMatrix<REAL> &axes, TPZVec<STATE> &flux) {
     if (fabs(axes(2, 0)) >= 1.e-6 || fabs(axes(2, 1)) >= 1.e-6) {
-        cout << "TPZMixedElasticityMaterial::Flux only serves for xy configuration\n";
+        cout << "TPZMixedElasticityMaterialLocal::Flux only serves for xy configuration\n";
         axes.Print("axes");
     }
 }
 
-int TPZMixedElasticityMaterial::NEvalErrors() {
-    return 6;
+int TPZMixedElasticityMaterialLocal::NEvalErrors() {
+    return 7;
 }
 
-void TPZMixedElasticityMaterial::Errors(TPZVec<TPZMaterialData> &data, TPZVec<STATE> &u_exact, TPZFMatrix<STATE> &du_exact, TPZVec<REAL> &errors) {
+void TPZMixedElasticityMaterialLocal::Errors(TPZVec<TPZMaterialData> &data, TPZVec<STATE> &u_exact, TPZFMatrix<STATE> &du_exact, TPZVec<REAL> &errors) {
     //values[0] = 0.;
     TPZManVector<REAL, 4> SigmaV(4, 0.), sigma_exactV(4, 0.), eps_exactV(4, 0.), EPSZV(4, 0.);
     TPZFNMatrix<9, STATE> sigma(2, 2, 0.), eps(2, 2, 0.), grad(2, 2, 0.);
@@ -1419,7 +1419,7 @@ void TPZMixedElasticityMaterial::Errors(TPZVec<TPZMaterialData> &data, TPZVec<ST
     //values[2] = values[1] + SemiH1;
 }
 
-void TPZMixedElasticityMaterial::Errors(TPZVec<REAL> &x, TPZVec<STATE> &u,
+void TPZMixedElasticityMaterialLocal::Errors(TPZVec<REAL> &x, TPZVec<STATE> &u,
         TPZFMatrix<STATE> &dudx, TPZFMatrix<REAL> &axes, TPZVec<STATE> &flux,
         TPZVec<STATE> &u_exact, TPZFMatrix<STATE> &du_exact, TPZVec<REAL> &values) {
     values[0] = 0.;
@@ -1463,7 +1463,7 @@ void TPZMixedElasticityMaterial::Errors(TPZVec<REAL> &x, TPZVec<STATE> &u,
     }
 }
 
-TPZMixedElasticityMaterial::TPZMixedElasticityMaterial(const TPZMixedElasticityMaterial &copy) :
+TPZMixedElasticityMaterialLocal::TPZMixedElasticityMaterialLocal(const TPZMixedElasticityMaterialLocal &copy) :
 TPZDiscontinuousGalerkin(copy),
 fE(copy.fE),
 fnu(copy.fnu),
@@ -1476,11 +1476,11 @@ fMatrixA(copy.fMatrixA),
 fAxisSymmetric(copy.fAxisSymmetric){
 }
 
-int TPZMixedElasticityMaterial::ClassId() const {
-    return Hash("TPZMixedElasticityMaterial") ^ TPZDiscontinuousGalerkin::ClassId() << 1;
+int TPZMixedElasticityMaterialLocal::ClassId() const {
+    return Hash("TPZMixedElasticityMaterialLocal") ^ TPZDiscontinuousGalerkin::ClassId() << 1;
 }
 
-void TPZMixedElasticityMaterial::Read(TPZStream &buf, void *context) {
+void TPZMixedElasticityMaterialLocal::Read(TPZStream &buf, void *context) {
     TPZMaterial::Read(buf, context);
     buf.Read(&fE, 1);
     buf.Read(&fnu, 1);
@@ -1490,7 +1490,7 @@ void TPZMixedElasticityMaterial::Read(TPZStream &buf, void *context) {
     buf.Read(&fPostProcIndex);
 }
 
-void TPZMixedElasticityMaterial::Write(TPZStream &buf, int withclassid) const {
+void TPZMixedElasticityMaterialLocal::Write(TPZStream &buf, int withclassid) const {
     TPZMaterial::Write(buf, withclassid);
     buf.Write(&fE, 1);
     buf.Write(&fnu, 1);
