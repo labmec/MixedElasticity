@@ -405,10 +405,10 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
     int plain = 0.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-    TPZMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
+    TPZMaterial * material = new TPZMixedElasticityMaterialLocal(matID, E, nu, fx, fy, plain, dim);
     cmesh->InsertMaterialObject(material); //Insere material na malha
     //material->SetAxisSymmetric();
-    TPZMaterial * material2 = new TPZMixedElasticityMaterial(3, E, nu, fx, fy, plain, dim);
+    TPZMaterial * material2 = new TPZMixedElasticityMaterialLocal(3, E, nu, fx, fy, plain, dim);
     cmesh->InsertMaterialObject(material2); //Insere material na malha
 
 
@@ -504,11 +504,11 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
     int plain = 0.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-    TPZMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
+    TPZMaterial * material = new TPZMixedElasticityMaterialLocal(matID, E, nu, fx, fy, plain, dim);
 
     cmesh->InsertMaterialObject(material); //Insere material na malha
 
-    TPZMaterial * material2 = new TPZMixedElasticityMaterial(matID2, E, nu, fx, fy, plain, dim);
+    TPZMaterial * material2 = new TPZMixedElasticityMaterialLocal(matID2, E, nu, fx, fy, plain, dim);
     // material->SetAxisSymmetric();
     cmesh->InsertMaterialObject(material2); //Insere material na malha
 
@@ -625,8 +625,8 @@ TPZCompMesh *CMesh_Girk(TPZGeoMesh *gmesh, int pOrder) {
     REAL fy = -32.69; //* @param fx forcing function \f$ -x = fx \f$
     int plain = 1.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-    TPZMixedElasticityMaterial * material1 = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
-    TPZMixedElasticityMaterial * material2 = new TPZMixedElasticityMaterial(matID2, E, nu, fx, fy, plain, dim);
+    TPZMixedElasticityMaterialLocal * material1 = new TPZMixedElasticityMaterialLocal(matID, E, nu, fx, fy, plain, dim);
+    TPZMixedElasticityMaterialLocal * material2 = new TPZMixedElasticityMaterialLocal(matID2, E, nu, fx, fy, plain, dim);
     material1->SetAxisSymmetric();
     material2->SetAxisSymmetric();
 
@@ -982,8 +982,8 @@ void IntegrateForceOnInterface(TPZCompMesh *cmesh, TPZVec<STATE> &ForceCartesian
             std::cout << "At x " << x << " Stress Left = " << solL << std::endl;
             std::cout << "At x " << x << " Stress Right = " << solR << std::endl;
             TPZFNMatrix<4, STATE> sigL(2, 2), sigR(2, 2);
-            TPZMixedElasticityMaterial::FromVoigt(solL, sigL);
-            TPZMixedElasticityMaterial::FromVoigt(solR, sigR);
+            TPZMixedElasticityMaterialLocal::FromVoigt(solL, sigL);
+            TPZMixedElasticityMaterialLocal::FromVoigt(solR, sigR);
             TPZManVector<STATE, 2> sigLNormal(2), sigRNormal(2);
             sigLNormal[0] = sigL(0, 0) * normal[0] + sigL(0, 1) * normal[1];
             sigLNormal[1] = sigL(1, 0) * normal[0] + sigL(1, 1) * normal[1];
