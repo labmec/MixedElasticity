@@ -1252,9 +1252,9 @@ int main(int argc, char *argv[]) {
     
     EConfig conf = EThiago;
     int initial_p = 1;
-    int final_p = 1;
-    int initial_h = 1;
-    int final_h = 3;
+    int final_p = 2;
+    int initial_h = 2;
+    int final_h = 7;
     bool plotting = true;
     EElementType elementType = ESquare;
     int numthreads = 8;
@@ -1331,6 +1331,12 @@ int main(int argc, char *argv[]) {
     //    TElasticityExample1::Force(x, force);
 
     for (unsigned int pref = initial_p - 1; pref < final_p; ++pref) {
+        std::stringstream filename;
+        filename<<"MFEM_WS-Errors.txt";
+        std::ofstream out (filename.str(),std::ios::app);
+        out << std::endl;
+        out<< "PARA k_Order = " << pref+1 <<std::endl;
+        out << std::endl;
         for (unsigned int href = initial_h; href <= final_h; ++href) {
             unsigned int h_level = 1 << href;
             unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
@@ -1552,6 +1558,16 @@ int main(int argc, char *argv[]) {
             ErroOut << "Error[[" << href + 1 << "," << pref + 1 << "]] = {" << output << "};\n";
 
             std::cout << "Errors = " << Errors << std::endl;
+            
+//            std::stringstream filename;
+//            filename<<"MFEM_WS-Errors.txt";
+//            std::ofstream out (filename.str(),std::ios::app);
+//            out << std::endl;
+//            out<< "PARA k = " << pref <<std::endl;
+//            out << std::endl;
+            out << "nelx_nely = " << h_level << " X " << h_level << " rib_k_order = " << stressPOrder << " Internal_k_order = " << stressInternalPOrder << " dof_condensed = " << output[3] << " dof_total = " << output[4] << std::endl;
+            out << "Energy_stress = " << Errors[1] << " L2_displacement = " << Errors[3] << " L2_stress = " << Errors[0] << " L2_Div(stress) = " << Errors[2] << " L2_rotation = " << Errors[4] << " L2_asym = " << Errors[5] <<" ExactEnergy_displacement = " << Errors[6] << std::endl;
+            out << std::endl;
 
 
             an.CleanUp();
