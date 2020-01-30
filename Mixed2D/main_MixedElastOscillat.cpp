@@ -292,6 +292,8 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
         case ETriangular:
             gengrid.SetElementType(ETriangle);
             break;
+        case ESquare:
+            break;
         case ETrapezoidal:
             gengrid.SetDistortion(0.25);
             break;

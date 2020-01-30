@@ -111,33 +111,21 @@ void TPZMixedElasticityMaterialLocal::ComputeDivergenceOnDeformed(TPZVec<TPZMate
     int ivectorindex = 0;
     int ishapeindex = 0;
 
-    if (HDivPiola == 1) {
-        for (int iq = 0; iq < nphiuHdiv; iq++) {
-            ivectorindex = datavec[sigmaBlock].fVecShapeIndex[iq].first;
-            ishapeindex = datavec[sigmaBlock].fVecShapeIndex[iq].second;
-
-            VectorOnXYZ(0, 0) = datavec[sigmaBlock].fNormalVec(0, ivectorindex);
-            VectorOnXYZ(1, 0) = datavec[sigmaBlock].fNormalVec(1, ivectorindex);
-            VectorOnXYZ(2, 0) = datavec[sigmaBlock].fNormalVec(2, ivectorindex);
-
-            GradOfXInverse.Multiply(VectorOnXYZ, VectorOnMaster);
-            VectorOnMaster *= JacobianDet;
-
-            /* Contravariant Piola mapping preserves the divergence */
-//            DivergenceofPhi(iq, 0) = (1.0 / JacobianDet) * (dphiuH1(0, ishapeindex) * VectorOnMaster(0, 0) +
-//                    dphiuH1(1, ishapeindex) * VectorOnMaster(1, 0) +
-//                    dphiuH1(2, ishapeindex) * VectorOnMaster(2, 0));
-        }
-    } else {
-        for (int iq = 0; iq < nphiuHdiv; iq++) {
-            ivectorindex = datavec[sigmaBlock].fVecShapeIndex[iq].first;
-            ishapeindex = datavec[sigmaBlock].fVecShapeIndex[iq].second;
-
-            /* Computing the divergence for constant Jacobian elements */
-            DivergenceofPhi(iq, 0) = datavec[sigmaBlock].fNormalVec(0, ivectorindex) * GradphiuH1(0, ishapeindex) +
-                    datavec[sigmaBlock].fNormalVec(1, ivectorindex) * GradphiuH1(1, ishapeindex) +
-                    datavec[sigmaBlock].fNormalVec(2, ivectorindex) * GradphiuH1(2, ishapeindex);
-        }
+    for (int iq = 0; iq < nphiuHdiv; iq++) {
+        ivectorindex = datavec[sigmaBlock].fVecShapeIndex[iq].first;
+        ishapeindex = datavec[sigmaBlock].fVecShapeIndex[iq].second;
+        
+        VectorOnXYZ(0, 0) = datavec[sigmaBlock].fNormalVec(0, ivectorindex);
+        VectorOnXYZ(1, 0) = datavec[sigmaBlock].fNormalVec(1, ivectorindex);
+        VectorOnXYZ(2, 0) = datavec[sigmaBlock].fNormalVec(2, ivectorindex);
+        
+        GradOfXInverse.Multiply(VectorOnXYZ, VectorOnMaster);
+        VectorOnMaster *= JacobianDet;
+        
+        /* Contravariant Piola mapping preserves the divergence */
+        //            DivergenceofPhi(iq, 0) = (1.0 / JacobianDet) * (dphiuH1(0, ishapeindex) * VectorOnMaster(0, 0) +
+        //                    dphiuH1(1, ishapeindex) * VectorOnMaster(1, 0) +
+        //                    dphiuH1(2, ishapeindex) * VectorOnMaster(2, 0));
     }
 
     return;
