@@ -82,6 +82,15 @@ if(WIN32)
 
 endif()
 
+# Boost library dependencies
+IF (WIN32)
+	set(Boost_USE_STATIC_LIBS   ON)
+	set(Boost_USE_MULTITHREADED ON)
+        set(CMAKE_PREFIX_PATH "C:/local/boost_1_72_0" ${CMAKE_PREFIX_PATH})
+ENDIF()
+
+find_package( Boost 1.71 COMPONENTS unit_test_framework date_time atomic REQUIRED )
+
 add_subdirectory(Mixed2D)
 
 #Enabling nightly tests
