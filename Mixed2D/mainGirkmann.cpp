@@ -76,7 +76,7 @@
 #include "pzmultiphysicselement.h"
 #include "TPZMultiphysicsInterfaceEl.h"
 
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include <cmath>
 #include <set>
 

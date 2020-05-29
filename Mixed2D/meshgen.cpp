@@ -2,7 +2,7 @@
 #include "meshgen.h"
 
 #include "pzgmesh.h"
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include "pzgeoel.h"
 #include "TPZRefPatternTools.h"
 #include "pzcheckgeom.h"
@@ -426,19 +426,19 @@ void TElasticityExample1::DivSigma(const TPZVec<TVar> &x, TPZVec<TVar> &divsigma
         divsigma[0] = sigma(0, 0).dx(0) + sigma(0, 1).dx(1) + sigma(0, 0).val() / x[0] - result[0] / (E * x[0] * x[0]);
         divsigma[1] = sigma(1, 0).dx(0) + sigma(1, 1).dx(1) + sigma(1, 0).val() / x[0];
     }
-
+    if(divsigma.size() == 3) divsigma[2] = 0.;
 }
 
 TPZAutoPointer<TPZFunction<STATE> > TElasticityExample1::ForcingFunction() {
     TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(Force,0);
-    dummy->SetPolynomialOrder(30);
+    dummy->SetPolynomialOrder(4);
     TPZAutoPointer<TPZFunction<STATE> > result(dummy);
     return result;
 }
 
 TPZAutoPointer<TPZFunction<STATE> > TElasticityExample1::ValueFunction() {
     TPZDummyFunction<STATE> *dummy = new TPZDummyFunction<STATE>(GradU,0);
-    dummy->SetPolynomialOrder(10);
+    dummy->SetPolynomialOrder(4);
     TPZAutoPointer<TPZFunction<STATE> > result(dummy);
     return result;
 
