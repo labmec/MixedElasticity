@@ -90,9 +90,15 @@ static LoggerPtr logger(Logger::getLogger("pz.elasticity"));
 
 //------------------Elasticity Problem------------------------
 
+// local enum for mesh types @ToDo these names might lead to confusion. We should consider changing.
 enum EElementType {
     ETriangular = 0, ESquare = 1, ETrapezoidal = 2
 };
+
+// @proposition - Pedro
+// enum ELocalMeshType {
+//     ETriang = 0, ESquare = 1, ETrapezoid = 3
+// };
 
 TPZAnalyticSolution *example;
 
@@ -290,7 +296,7 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
 
     switch (meshType) {
         case ETriangular:
-            gengrid.SetElementType(ETriangular);
+            gengrid.SetElementType(MMeshType::ETriangular);
             break;
         case ESquare:
             break;
