@@ -80,7 +80,7 @@
 #include "TPZMixedElasticityMaterial.h"
 #include "TPZAnalyticSolution.h"
 
-#include "pzgengrid.h"
+#include "TPZGenGrid2D.h"
 #include <cmath>
 #include <set>
 
@@ -286,11 +286,11 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
     nelem[0] = nelx;
     nelem[1] = nely;
 
-    TPZGenGrid gengrid(nelem, gcoord1, gcoord2);
+    TPZGenGrid2D gengrid(nelem, gcoord1, gcoord2);
 
     switch (meshType) {
         case ETriangular:
-            gengrid.SetElementType(ETriangle);
+            gengrid.SetElementType(ETriangular);
             break;
         case ESquare:
             break;
