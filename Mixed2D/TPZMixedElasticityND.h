@@ -3,8 +3,8 @@
  * @brief Contains the TPZMixedElasticityND class which implements an N-dimensional elastic material.
  */
 
-#ifndef MIXEDELASMATHPP
-#define MIXEDELASMATHPP
+#ifndef MIXEDELASMATNDHPP
+#define MIXEDELASMATNDHPP
 
 #include <iostream>
 
