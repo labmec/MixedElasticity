@@ -1,5 +1,6 @@
 
-set(sources TPZCompelDiscScaled.h TPZCompelDiscScaled.cpp meshgen.h meshgen.cpp pzmixedelasmat.h pzmixedelasmat.cpp)
+set(sources TPZMixedElasticityND.cpp TPZCompelDiscScaled.h TPZCompelDiscScaled.cpp meshgen.h meshgen.cpp pzmixedelasmat.h pzmixedelasmat.cpp)
+file(GLOB headers *.h)
 
 set(Mymain main.cpp )
 
