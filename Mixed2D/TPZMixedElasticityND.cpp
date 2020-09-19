@@ -569,6 +569,11 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
             }
         }
     }
+    
+    if(datavec.size() > 3)
+    {
+        DebugStop();
+    }
     ///    std::ofstream filestiff("ek.txt");
     //    ek.Print("K1 = ",filestiff,EMathematicaInput);
 }

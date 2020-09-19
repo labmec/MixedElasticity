@@ -310,7 +310,11 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
             gengrid.SetElementType(MMeshType::ETriangular);
             break;
         case ETrapezoidal:
+            gengrid.SetElementType(MMeshType::EQuadrilateral);
             gengrid.SetDistortion(0.25);
+            break;
+        case ESquare:
+            gengrid.SetElementType(MMeshType::EQuadrilateral);
             break;
     }
 
