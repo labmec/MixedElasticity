@@ -280,7 +280,7 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
     if (datavec[0].fVecShapeIndex.size() == 0) {
         FillVecShapeIndex(datavec[0]);
     }
-
+    
     REAL R = datavec[0].x[0];
     // Setting the phi's
     // E
@@ -324,17 +324,30 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
     int nrotations = 1;
     if(fDimension == 3) nrotations = 3;
 
-    TPZManVector<STATE, 3> force(fDimension, 0.);
-    TPZFNMatrix<3,STATE> phiSi(3, 1, 0.), phiSj(fDimension, 1, 0.);
-    TPZManVector<STATE, 3> divSi1x(fDimension, 0.), divSi1y(fDimension, 0.), divSi1z(fDimension, 0.);
+    TPZManVector<STATE, 3>  force(fDimension, 0.);
+    
+    TPZFNMatrix<3,STATE>    phiSi(3, 1, 0.), 
+                            phiSj(fDimension, 1, 0.);
+    
+    TPZManVector<STATE, 3>  divSi1x(fDimension, 0.), 
+                            divSi1y(fDimension, 0.), 
+                            divSi1z(fDimension, 0.);
+    
     int voigtdim = fDimension*fDimension;
-    TPZManVector<STATE, 9> phiSi1x(voigtdim, 0.0), phiSj1x(voigtdim, 0.0),
-    phiSi1y(voigtdim, 0.0), phiSj1y(voigtdim, 0.0),
-    phiSi1z(voigtdim, 0.0), phiSj1z(voigtdim, 0.0),
-    phiPj1x(voigtdim, 0.0), phiPj1y(voigtdim, 0.0), phiPj1z(voigtdim, 0.0);
-    TPZManVector<STATE, 3> phiUi(fDimension, 0.0), phiUj(fDimension, 0.0), phiUj1x(fDimension, 0.0), phiUj1y(fDimension, 0.0), phiUj1z(fDimension, 0.0);;
-    TPZFNMatrix<3,STATE> phiPi(fDimension, 1, 0.0), phiPj(fDimension, 1, 0.0);
-    TPZFNMatrix<3, REAL> ivecS(3, 1, 0.);
+    TPZManVector<STATE, 9>  phiSi1x(voigtdim, 0.0), phiSi1y(voigtdim, 0.0), phiSi1z(voigtdim, 0.0),
+                            phiSj1x(voigtdim, 0.0), phiSj1y(voigtdim, 0.0), phiSj1z(voigtdim, 0.0),
+                            phiPj1x(voigtdim, 0.0), phiPj1y(voigtdim, 0.0), phiPj1z(voigtdim, 0.0);
+    
+    TPZManVector<STATE, 3>  phiUi(fDimension, 0.0), 
+                            phiUj(fDimension, 0.0), 
+                            phiUj1x(fDimension, 0.0), 
+                            phiUj1y(fDimension, 0.0), 
+                            phiUj1z(fDimension, 0.0);;
+    
+    TPZFNMatrix<3,STATE>    phiPi(fDimension, 1, 0.0), 
+                            phiPj(fDimension, 1, 0.0);
+    
+    TPZFNMatrix<3, REAL>    ivecS(3, 1, 0.);
 
     force = fForce;
     if (this->HasForcingFunction()) {
@@ -570,12 +583,169 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
         }
     }
     
-    if(datavec.size() > 3)
-    {
-        DebugStop();
-    }
     ///    std::ofstream filestiff("ek.txt");
     //    ek.Print("K1 = ",filestiff,EMathematicaInput);
+    
+    
+    
+    if(datavec.size() <= 3) return;
+    // if(datavec.size() > 3) {DebugStop();}
+
+    // Distributed forces
+    TPZFMatrix<REAL>& phiFRB = datavec[3].phi;
+    int nshapeFRB = phiFRB.Rows();
+    // Rigid body displacements
+    TPZFMatrix<REAL>& phiURB = datavec[4].phi;
+    int nshapeURB = phiURB.Rows();
+    
+    const int firstequation_S = 0;
+    const int firstequation_U = firstequation_S + nshapeS*fDimension;
+    const int firstequation_P = firstequation_U + nshapeU*fDimension;
+    const int firstequation_FRB = firstequation_P + nshapeP*nrotations;
+    const int ncomponents = fDimension+nrotations;
+    const int firstequation_URB = firstequation_FRB + nshapeFRB*ncomponents;
+
+    // get distance of integration point to center of element
+    TPZManVector<REAL,3> eccentricity(3,0.);
+                            eccentricity[0] = datavec[0].x[0] - datavec[0].XCenter[0];
+                            eccentricity[1] = datavec[0].x[1] - datavec[0].XCenter[1];
+        if(fDimension==3){  eccentricity[2] = datavec[0].x[2] - datavec[0].XCenter[2];}
+
+    for(int i=0; i<nshapeFRB; i++){// @todo: won't this always be equal 1?
+        // Matrix K42 and K24 - Distributed forces x displacement
+        for(int j=0; j<nshapeU; j++){
+            // Matrix K24
+            // Translation forces
+            REAL val_f = weight*phiU(j,0);
+            ek(0 + j*fDimension + firstequation_U, 0 + firstequation_FRB) += val_f;
+            ek(1 + j*fDimension + firstequation_U, 1 + firstequation_FRB) += val_f;
+            if(fDimension==3) 
+                {ek(2 + j*fDimension + firstequation_U, 2 + firstequation_FRB) += val_f;}
+            // Rotation forces
+            REAL val_mz = phiU(j,0)*eccentricity[2];
+            ek(0 + j*fDimension + firstequation_U, 1 + fDimension + firstequation_FRB) -= val_mz;
+            ek(1 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) += val_mz;
+            if(fDimension==3){
+                REAL val_mx = phiU(j,0)*eccentricity[0];
+                REAL val_my = phiU(j,0)*eccentricity[1];
+                ek(1 + j*fDimension + firstequation_U, 2 + fDimension + firstequation_FRB) -= val_mx;
+                ek(2 + j*fDimension + firstequation_U, 1 + fDimension + firstequation_FRB) += val_mx;
+                ek(0 + j*fDimension + firstequation_U, 2 + fDimension + firstequation_FRB) += val_my;
+                ek(2 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) -= val_my;
+            }
+            // Matrix K42
+            // Translation forces
+            ek(0 + firstequation_FRB, 0 + j*fDimension + firstequation_U) += val_f;
+            ek(1 + firstequation_FRB, 1 + j*fDimension + firstequation_U) += val_f;
+            if(fDimension==3) 
+                {ek(2 + firstequation_FRB, 2 + j*fDimension + firstequation_U) += val_f;}
+            // Rotation forces
+            ek(1 + fDimension + firstequation_FRB, 0 + j*fDimension + firstequation_U) -= val_mz;
+            ek(0 + fDimension + firstequation_FRB, 1 + j*fDimension + firstequation_U) += val_mz;
+            if(fDimension==3){
+                REAL val_mx = phiU(j,0)*eccentricity[0];
+                REAL val_my = phiU(j,0)*eccentricity[1];
+                ek(2 + fDimension + firstequation_FRB, 1 + j*fDimension + firstequation_U) -= val_mx;
+                ek(1 + fDimension + firstequation_FRB, 2 + j*fDimension + firstequation_U) += val_mx;
+                ek(2 + fDimension + firstequation_FRB, 0 + j*fDimension + firstequation_U) += val_my;
+                ek(0 + fDimension + firstequation_FRB, 2 + j*fDimension + firstequation_U) -= val_my;
+            }
+
+        }
+        // Matrix K45 and K54 - Distributed forces x rigid body displacement
+        for(int j=0; j<nshapeURB; j++){// @todo: won't this always be equal 1?
+
+            //  Matrix 45
+            // Translations x Translations
+            for(int d=0; d<fDimension; d++)
+                {ek(d + firstequation_FRB, d + firstequation_URB) += weight;}
+            // Translations x Rotations
+            REAL val_mz = weight*eccentricity[2];
+            ek(1 + firstequation_FRB, 0 + firstequation_URB + fDimension) += val_mz;
+            ek(0 + firstequation_FRB, 1 + firstequation_URB + fDimension) -= val_mz;
+            if(fDimension==3){
+                REAL val_mx = weight*eccentricity[0];
+                REAL val_my = weight*eccentricity[1];
+                ek(2 + firstequation_FRB, 1 + firstequation_URB + fDimension) += val_mx;
+                ek(1 + firstequation_FRB, 2 + firstequation_URB + fDimension) -= val_mx;
+                ek(2 + firstequation_FRB, 0 + firstequation_URB + fDimension) -= val_my;
+                ek(0 + firstequation_FRB, 2 + firstequation_URB + fDimension) += val_my;
+            }
+            // Rotations x Translations
+            ek(0 + firstequation_FRB + fDimension, 1 + firstequation_URB) += val_mz;
+            ek(1 + firstequation_FRB + fDimension, 0 + firstequation_URB) -= val_mz;
+            if(fDimension==3){
+                REAL val_mx = weight*eccentricity[0];
+                REAL val_my = weight*eccentricity[1];
+                ek(1 + firstequation_FRB + fDimension, 2 + firstequation_URB) += val_mx;
+                ek(2 + firstequation_FRB + fDimension, 1 + firstequation_URB) -= val_mx;
+                ek(0 + firstequation_FRB + fDimension, 2 + firstequation_URB) -= val_my;
+                ek(2 + firstequation_FRB + fDimension, 0 + firstequation_URB) += val_my;
+            }
+            // Rotations x Rotations
+            REAL val2_xy = weight*(eccentricity[0]*eccentricity[0] + eccentricity[1]*eccentricity[1]);
+            REAL val2_xz = weight*(eccentricity[0]*eccentricity[0] + eccentricity[2]*eccentricity[2]);
+            REAL val2_yz = weight*(eccentricity[1]*eccentricity[1] + eccentricity[2]*eccentricity[2]);
+            REAL val_xy = weight*(eccentricity[0]*eccentricity[1]);
+            REAL val_xz = weight*(eccentricity[0]*eccentricity[2]);
+            REAL val_yz = weight*(eccentricity[1]*eccentricity[2]);
+            
+            ek(0 + firstequation_FRB + fDimension,0 + firstequation_URB + fDimension) += val2_yz; 
+            ek(1 + firstequation_FRB + fDimension,1 + firstequation_URB + fDimension) += val2_xz; 
+            ek(1 + firstequation_FRB + fDimension,0 + firstequation_URB + fDimension) -= val_xy; 
+            ek(0 + firstequation_FRB + fDimension,1 + firstequation_URB + fDimension) -= val_xy; 
+            
+            if(fDimension==3){
+                ek(2 + firstequation_FRB + fDimension,2 + firstequation_URB + fDimension) += val2_xy; 
+                ek(0 + firstequation_FRB + fDimension,2 + firstequation_URB + fDimension) -= val_xz; 
+                ek(1 + firstequation_FRB + fDimension,2 + firstequation_URB + fDimension) -= val_yz; 
+                ek(2 + firstequation_FRB + fDimension,0 + firstequation_URB + fDimension) -= val_xz; 
+                ek(2 + firstequation_FRB + fDimension,1 + firstequation_URB + fDimension) -= val_yz; 
+            }
+
+            //  Matrix 54
+            // Translations x Translations
+            for(int d=0; d<fDimension; d++)
+                {ek(d + firstequation_URB, d + firstequation_FRB) += weight;}
+            // Translations x Rotations
+            ek(0 + firstequation_URB + fDimension, 1 + firstequation_FRB) += val_mz;
+            ek(1 + firstequation_URB + fDimension, 0 + firstequation_FRB) -= val_mz;
+            if(fDimension==3){
+                REAL val_mx = weight*eccentricity[0];
+                REAL val_my = weight*eccentricity[1];
+                ek(1 + firstequation_URB + fDimension, 2 + firstequation_FRB) += val_mx;
+                ek(2 + firstequation_URB + fDimension, 1 + firstequation_FRB) -= val_mx;
+                ek(0 + firstequation_URB + fDimension, 2 + firstequation_FRB) -= val_my;
+                ek(2 + firstequation_URB + fDimension, 0 + firstequation_FRB) += val_my;
+            }
+            // Rotations x Translations
+            ek(1 + firstequation_URB, 0 + firstequation_FRB + fDimension) += val_mz;
+            ek(0 + firstequation_URB, 1 + firstequation_FRB + fDimension) -= val_mz;
+            if(fDimension==3){
+                REAL val_mx = weight*eccentricity[0];
+                REAL val_my = weight*eccentricity[1];
+                ek(2 + firstequation_URB, 1 + firstequation_FRB + fDimension) += val_mx;
+                ek(1 + firstequation_URB, 2 + firstequation_FRB + fDimension) -= val_mx;
+                ek(2 + firstequation_URB, 0 + firstequation_FRB + fDimension) -= val_my;
+                ek(0 + firstequation_URB, 2 + firstequation_FRB + fDimension) += val_my;
+            }
+            // Rotations x Rotations
+            
+            ek(0 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) += val2_yz; 
+            ek(1 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) += val2_xz; 
+            ek(0 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) -= val_xy; 
+            ek(1 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) -= val_xy; 
+            
+            if(fDimension==3){
+                ek(2 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) += val2_xy; 
+                ek(2 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) -= val_xz; 
+                ek(2 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) -= val_yz; 
+                ek(0 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) -= val_xz; 
+                ek(1 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) -= val_yz; 
+            }
+
+        }
+    }
 }
 
 void TPZMixedElasticityND::Contribute(TPZMaterialData &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
