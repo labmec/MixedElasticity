@@ -319,6 +319,9 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
     nshapeS = datavec[0].fVecShapeIndex.NElements();
     nshapeU = datavec[1].phi.Rows();
     nshapeP = datavec[2].phi.Rows();
+    const int firstequation_S = 0;
+    const int firstequation_U = firstequation_S + nshapeS*fDimension;
+    const int firstequation_P = firstequation_U + nshapeU*fDimension;
     
     // number of asymetric tensors for each shape function
     int nrotations = 1;
@@ -589,6 +592,9 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
     
     
     if(datavec.size() <= 3) return;
+    ofstream out1("matrix1.txt");
+    ek.Print("matrix1",out1,EFixedColumn);
+    out1.flush();
     // if(datavec.size() > 3) {DebugStop();}
 
     // Distributed forces
@@ -598,40 +604,43 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
     TPZFMatrix<REAL>& phiURB = datavec[4].phi;
     int nshapeURB = phiURB.Rows();
     
-    const int firstequation_S = 0;
-    const int firstequation_U = firstequation_S + nshapeS*fDimension;
-    const int firstequation_P = firstequation_U + nshapeU*fDimension;
     const int firstequation_FRB = firstequation_P + nshapeP*nrotations;
     const int ncomponents = fDimension+nrotations;
     const int firstequation_URB = firstequation_FRB + nshapeFRB*ncomponents;
 
-    // get distance of integration point to center of element
-    TPZManVector<REAL,3> eccentricity(3,0.);
-                            eccentricity[0] = datavec[0].x[0] - datavec[0].XCenter[0];
-                            eccentricity[1] = datavec[0].x[1] - datavec[0].XCenter[1];
-        if(fDimension==3){  eccentricity[2] = datavec[0].x[2] - datavec[0].XCenter[2];}
+    bool sizetest = ek.Cols() == firstequation_URB + ncomponents;
+    if(!sizetest) DebugStop();
 
-    for(int i=0; i<nshapeFRB; i++){// @todo: won't this always be equal 1?
+    // get distance of integration point to center of element
+    TPZManVector<REAL,3> delx(3,0.);
+                            delx[0] = datavec[0].x[0] - datavec[0].XCenter[0];
+                            delx[1] = datavec[0].x[1] - datavec[0].XCenter[1];
+        if(fDimension==3){  delx[2] = datavec[0].x[2] - datavec[0].XCenter[2];}
+
+    {// for(int i=0; i<nshapeFRB; i++) but nshapeFRB is always == 1
         // Matrix K42 and K24 - Distributed forces x displacement
         for(int j=0; j<nshapeU; j++){
             // Matrix K24
-            // Translation forces
+            // Translation forces x displacement
             REAL val_f = weight*phiU(j,0);
             ek(0 + j*fDimension + firstequation_U, 0 + firstequation_FRB) += val_f;
             ek(1 + j*fDimension + firstequation_U, 1 + firstequation_FRB) += val_f;
             if(fDimension==3) 
                 {ek(2 + j*fDimension + firstequation_U, 2 + firstequation_FRB) += val_f;}
-            // Rotation forces
-            REAL val_mz = phiU(j,0)*eccentricity[2];
-            ek(0 + j*fDimension + firstequation_U, 1 + fDimension + firstequation_FRB) -= val_mz;
-            ek(1 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) += val_mz;
+            // Rotation forces  x displacement
+            REAL val_mx = phiU(j,0)*delx[0];
+            REAL val_my = phiU(j,0)*delx[1];
+            REAL val_mz = phiU(j,0)*delx[2];
             if(fDimension==3){
-                REAL val_mx = phiU(j,0)*eccentricity[0];
-                REAL val_my = phiU(j,0)*eccentricity[1];
+                ek(0 + j*fDimension + firstequation_U, 1 + fDimension + firstequation_FRB) -= val_mz;
+                ek(1 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) += val_mz;
                 ek(1 + j*fDimension + firstequation_U, 2 + fDimension + firstequation_FRB) -= val_mx;
                 ek(2 + j*fDimension + firstequation_U, 1 + fDimension + firstequation_FRB) += val_mx;
                 ek(0 + j*fDimension + firstequation_U, 2 + fDimension + firstequation_FRB) += val_my;
                 ek(2 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) -= val_my;
+            }else{
+                ek(0 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) -= val_my;
+                ek(1 + j*fDimension + firstequation_U, 0 + fDimension + firstequation_FRB) += val_mx;
             }
             // Matrix K42
             // Translation forces
@@ -640,111 +649,122 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
             if(fDimension==3) 
                 {ek(2 + firstequation_FRB, 2 + j*fDimension + firstequation_U) += val_f;}
             // Rotation forces
-            ek(1 + fDimension + firstequation_FRB, 0 + j*fDimension + firstequation_U) -= val_mz;
-            ek(0 + fDimension + firstequation_FRB, 1 + j*fDimension + firstequation_U) += val_mz;
             if(fDimension==3){
-                REAL val_mx = phiU(j,0)*eccentricity[0];
-                REAL val_my = phiU(j,0)*eccentricity[1];
+                ek(1 + fDimension + firstequation_FRB, 0 + j*fDimension + firstequation_U) -= val_mz;
+                ek(0 + fDimension + firstequation_FRB, 1 + j*fDimension + firstequation_U) += val_mz;
                 ek(2 + fDimension + firstequation_FRB, 1 + j*fDimension + firstequation_U) -= val_mx;
                 ek(1 + fDimension + firstequation_FRB, 2 + j*fDimension + firstequation_U) += val_mx;
                 ek(2 + fDimension + firstequation_FRB, 0 + j*fDimension + firstequation_U) += val_my;
                 ek(0 + fDimension + firstequation_FRB, 2 + j*fDimension + firstequation_U) -= val_my;
+            }else{
+                ek(0 + fDimension + firstequation_FRB, 0 + j*fDimension + firstequation_U) -= val_my;
+                ek(0 + fDimension + firstequation_FRB, 1 + j*fDimension + firstequation_U) += val_mx;
             }
-
         }
+        ofstream out2("matrix2.txt");
+        // ek.Print("name",out2,EFixedColumn);
+        // out2.flush();
         // Matrix K45 and K54 - Distributed forces x rigid body displacement
-        for(int j=0; j<nshapeURB; j++){// @todo: won't this always be equal 1?
+        {// for(int j=0; j<nshapeURB; j++) but nshapeURB is always == 1
 
             //  Matrix 45
             // Translations x Translations
             for(int d=0; d<fDimension; d++)
                 {ek(d + firstequation_FRB, d + firstequation_URB) += weight;}
             // Translations x Rotations
-            REAL val_mz = weight*eccentricity[2];
-            ek(1 + firstequation_FRB, 0 + firstequation_URB + fDimension) += val_mz;
-            ek(0 + firstequation_FRB, 1 + firstequation_URB + fDimension) -= val_mz;
+            REAL val_x = weight*delx[0];
+            REAL val_y = weight*delx[1];
+            REAL val_z = weight*delx[2];
             if(fDimension==3){
-                REAL val_mx = weight*eccentricity[0];
-                REAL val_my = weight*eccentricity[1];
-                ek(2 + firstequation_FRB, 1 + firstequation_URB + fDimension) += val_mx;
-                ek(1 + firstequation_FRB, 2 + firstequation_URB + fDimension) -= val_mx;
-                ek(2 + firstequation_FRB, 0 + firstequation_URB + fDimension) -= val_my;
-                ek(0 + firstequation_FRB, 2 + firstequation_URB + fDimension) += val_my;
+                ek(2 + firstequation_FRB, 1 + firstequation_URB + fDimension) += val_x;
+                ek(1 + firstequation_FRB, 2 + firstequation_URB + fDimension) -= val_x;
+                ek(0 + firstequation_FRB, 2 + firstequation_URB + fDimension) += val_y;
+                ek(2 + firstequation_FRB, 0 + firstequation_URB + fDimension) -= val_y;
+                ek(1 + firstequation_FRB, 0 + firstequation_URB + fDimension) += val_z;
+                ek(0 + firstequation_FRB, 1 + firstequation_URB + fDimension) -= val_z;
+            }else{
+                ek(0 + firstequation_FRB, firstequation_URB + fDimension) -= val_y;
+                ek(1 + firstequation_FRB, firstequation_URB + fDimension) += val_x;
             }
             // Rotations x Translations
-            ek(0 + firstequation_FRB + fDimension, 1 + firstequation_URB) += val_mz;
-            ek(1 + firstequation_FRB + fDimension, 0 + firstequation_URB) -= val_mz;
             if(fDimension==3){
-                REAL val_mx = weight*eccentricity[0];
-                REAL val_my = weight*eccentricity[1];
-                ek(1 + firstequation_FRB + fDimension, 2 + firstequation_URB) += val_mx;
-                ek(2 + firstequation_FRB + fDimension, 1 + firstequation_URB) -= val_mx;
-                ek(0 + firstequation_FRB + fDimension, 2 + firstequation_URB) -= val_my;
-                ek(2 + firstequation_FRB + fDimension, 0 + firstequation_URB) += val_my;
+                ek(1 + firstequation_FRB + fDimension, 2 + firstequation_URB) += val_x;
+                ek(2 + firstequation_FRB + fDimension, 1 + firstequation_URB) -= val_x;
+                ek(2 + firstequation_FRB + fDimension, 0 + firstequation_URB) += val_y;
+                ek(0 + firstequation_FRB + fDimension, 2 + firstequation_URB) -= val_y;
+                ek(0 + firstequation_FRB + fDimension, 1 + firstequation_URB) += val_z;
+                ek(1 + firstequation_FRB + fDimension, 0 + firstequation_URB) -= val_z;
+            }else{
+                ek(0 + firstequation_FRB + fDimension, 0 + firstequation_URB) -= val_y;
+                ek(0 + firstequation_FRB + fDimension, 1 + firstequation_URB) += val_x;
             }
             // Rotations x Rotations
-            REAL val2_xy = weight*(eccentricity[0]*eccentricity[0] + eccentricity[1]*eccentricity[1]);
-            REAL val2_xz = weight*(eccentricity[0]*eccentricity[0] + eccentricity[2]*eccentricity[2]);
-            REAL val2_yz = weight*(eccentricity[1]*eccentricity[1] + eccentricity[2]*eccentricity[2]);
-            REAL val_xy = weight*(eccentricity[0]*eccentricity[1]);
-            REAL val_xz = weight*(eccentricity[0]*eccentricity[2]);
-            REAL val_yz = weight*(eccentricity[1]*eccentricity[2]);
+            REAL val2_xy = weight*(delx[0]*delx[0] + delx[1]*delx[1]);
+            REAL val2_xz = weight*(delx[0]*delx[0] + delx[2]*delx[2]);
+            REAL val2_yz = weight*(delx[1]*delx[1] + delx[2]*delx[2]);
+            REAL val_xy = weight*(delx[0]*delx[1]);
+            REAL val_xz = weight*(delx[0]*delx[2]);
+            REAL val_yz = weight*(delx[1]*delx[2]);
             
-            ek(0 + firstequation_FRB + fDimension,0 + firstequation_URB + fDimension) += val2_yz; 
-            ek(1 + firstequation_FRB + fDimension,1 + firstequation_URB + fDimension) += val2_xz; 
-            ek(1 + firstequation_FRB + fDimension,0 + firstequation_URB + fDimension) -= val_xy; 
-            ek(0 + firstequation_FRB + fDimension,1 + firstequation_URB + fDimension) -= val_xy; 
             
             if(fDimension==3){
-                ek(2 + firstequation_FRB + fDimension,2 + firstequation_URB + fDimension) += val2_xy; 
-                ek(0 + firstequation_FRB + fDimension,2 + firstequation_URB + fDimension) -= val_xz; 
-                ek(1 + firstequation_FRB + fDimension,2 + firstequation_URB + fDimension) -= val_yz; 
-                ek(2 + firstequation_FRB + fDimension,0 + firstequation_URB + fDimension) -= val_xz; 
-                ek(2 + firstequation_FRB + fDimension,1 + firstequation_URB + fDimension) -= val_yz; 
+                ek(0 + firstequation_FRB + fDimension, 0 + firstequation_URB + fDimension) += val2_yz; 
+                ek(0 + firstequation_FRB + fDimension, 1 + firstequation_URB + fDimension) -= val_xy; 
+                ek(0 + firstequation_FRB + fDimension, 2 + firstequation_URB + fDimension) -= val_xz; 
+                ek(1 + firstequation_FRB + fDimension, 0 + firstequation_URB + fDimension) -= val_xy; 
+                ek(1 + firstequation_FRB + fDimension, 1 + firstequation_URB + fDimension) += val2_xz; 
+                ek(1 + firstequation_FRB + fDimension, 2 + firstequation_URB + fDimension) -= val_yz; 
+                ek(2 + firstequation_FRB + fDimension, 0 + firstequation_URB + fDimension) -= val_xz; 
+                ek(2 + firstequation_FRB + fDimension, 1 + firstequation_URB + fDimension) -= val_yz; 
+                ek(2 + firstequation_FRB + fDimension, 2 + firstequation_URB + fDimension) += val2_xy; 
+            }else{
+                ek(0 + firstequation_FRB + fDimension, 0 + firstequation_URB + fDimension) += val2_xy; 
             }
-
             //  Matrix 54
             // Translations x Translations
             for(int d=0; d<fDimension; d++)
                 {ek(d + firstequation_URB, d + firstequation_FRB) += weight;}
             // Translations x Rotations
-            ek(0 + firstequation_URB + fDimension, 1 + firstequation_FRB) += val_mz;
-            ek(1 + firstequation_URB + fDimension, 0 + firstequation_FRB) -= val_mz;
             if(fDimension==3){
-                REAL val_mx = weight*eccentricity[0];
-                REAL val_my = weight*eccentricity[1];
-                ek(1 + firstequation_URB + fDimension, 2 + firstequation_FRB) += val_mx;
-                ek(2 + firstequation_URB + fDimension, 1 + firstequation_FRB) -= val_mx;
-                ek(0 + firstequation_URB + fDimension, 2 + firstequation_FRB) -= val_my;
-                ek(2 + firstequation_URB + fDimension, 0 + firstequation_FRB) += val_my;
+                ek(1 + firstequation_URB + fDimension, 2 + firstequation_FRB) += val_x;
+                ek(2 + firstequation_URB + fDimension, 1 + firstequation_FRB) -= val_x;
+                ek(2 + firstequation_URB + fDimension, 0 + firstequation_FRB) += val_y;
+                ek(0 + firstequation_URB + fDimension, 2 + firstequation_FRB) -= val_y;
+                ek(0 + firstequation_URB + fDimension, 1 + firstequation_FRB) += val_z;
+                ek(1 + firstequation_URB + fDimension, 0 + firstequation_FRB) -= val_z;
+            }else{
+                ek(firstequation_URB + fDimension, 0 + firstequation_FRB) -= val_y;
+                ek(firstequation_URB + fDimension, 1 + firstequation_FRB) += val_x;
             }
             // Rotations x Translations
-            ek(1 + firstequation_URB, 0 + firstequation_FRB + fDimension) += val_mz;
-            ek(0 + firstequation_URB, 1 + firstequation_FRB + fDimension) -= val_mz;
             if(fDimension==3){
-                REAL val_mx = weight*eccentricity[0];
-                REAL val_my = weight*eccentricity[1];
-                ek(2 + firstequation_URB, 1 + firstequation_FRB + fDimension) += val_mx;
-                ek(1 + firstequation_URB, 2 + firstequation_FRB + fDimension) -= val_mx;
-                ek(2 + firstequation_URB, 0 + firstequation_FRB + fDimension) -= val_my;
-                ek(0 + firstequation_URB, 2 + firstequation_FRB + fDimension) += val_my;
+                ek(2 + firstequation_URB, 1 + firstequation_FRB + fDimension) += val_x;
+                ek(1 + firstequation_URB, 2 + firstequation_FRB + fDimension) -= val_x;
+                ek(0 + firstequation_URB, 2 + firstequation_FRB + fDimension) += val_y;
+                ek(2 + firstequation_URB, 0 + firstequation_FRB + fDimension) -= val_y;
+                ek(1 + firstequation_URB, 0 + firstequation_FRB + fDimension) += val_z;
+                ek(0 + firstequation_URB, 1 + firstequation_FRB + fDimension) -= val_z;
+            }else{
+                ek(0 + firstequation_URB, 0 + firstequation_FRB + fDimension) -= val_y;
+                ek(1 + firstequation_URB, 0 + firstequation_FRB + fDimension) += val_x;
             }
             // Rotations x Rotations
-            
-            ek(0 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) += val2_yz; 
-            ek(1 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) += val2_xz; 
-            ek(0 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) -= val_xy; 
-            ek(1 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) -= val_xy; 
-            
             if(fDimension==3){
-                ek(2 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) += val2_xy; 
+                ek(0 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) += val2_yz; 
+                ek(1 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) -= val_xy; 
                 ek(2 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) -= val_xz; 
+                ek(0 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) -= val_xy; 
+                ek(1 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) += val2_xz; 
                 ek(2 + firstequation_URB + fDimension, 1 + firstequation_FRB + fDimension) -= val_yz; 
                 ek(0 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) -= val_xz; 
                 ek(1 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) -= val_yz; 
+                ek(2 + firstequation_URB + fDimension, 2 + firstequation_FRB + fDimension) += val2_xy; 
+            }else{
+                ek(0 + firstequation_URB + fDimension, 0 + firstequation_FRB + fDimension) += val2_xy; 
             }
-
         }
+        ek.Print("name",out2,EMathematicaInput);
+        out2.flush();
     }
 }
 

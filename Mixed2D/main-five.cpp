@@ -1174,7 +1174,7 @@ int main(int argc, char *argv[]) {
     int final_p = 1;
     int initial_h = 0;
     int final_h = 0;
-    bool plotting = false;
+    bool plotting = true;
     EElementType elementType = ESquare;
     int numthreads = 0;
 
