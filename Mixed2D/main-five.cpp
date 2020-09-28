@@ -1235,10 +1235,10 @@ int main(int argc, char *argv[]) {
             }
             else
                 DebugStop();
-            hx = 1;
-            hy = 1;
-            x0 = 0;
-            y0 = 0;
+            hx = 2;
+            hy = 2;
+            x0 = -1;
+            y0 = -1;
 
             break;
         case EAxiSymmetric:
