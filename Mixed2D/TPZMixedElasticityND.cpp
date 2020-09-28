@@ -612,6 +612,8 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
     if(!sizetest) DebugStop();
 
     // get distance of integration point to center of element
+
+    TPZManVector<REAL,3> xcenter = datavec[0].XCenter;
     TPZManVector<REAL,3> delx(3,0.);
                             delx[0] = datavec[0].x[0] - datavec[0].XCenter[0];
                             delx[1] = datavec[0].x[1] - datavec[0].XCenter[1];

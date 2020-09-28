@@ -1217,8 +1217,8 @@ int main(int argc, char *argv[]) {
             if(dim == 2)
             {
                 TElasticity2DAnalytic *elas = new TElasticity2DAnalytic;
-                elas->gE = 206.8150271873455;
-                elas->gPoisson = 0.3040039545229857;
+                elas->gE = 1;
+                elas->gPoisson = 1e-9;
                 elas->fProblemType = TElasticity2DAnalytic::ERot;
                 rootname = ConfigRootname[conf] + "_Rot";
                 elas->fPlaneStress = 0;
