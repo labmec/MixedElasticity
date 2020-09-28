@@ -670,7 +670,7 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
             //  Matrix 45
             // Translations x Translations
             for(int d=0; d<fDimension; d++)
-                {ek(d + firstequation_FRB, d + firstequation_URB) += weight;}
+                {ek(d + firstequation_FRB, d + firstequation_URB) -= weight;}
             // Translations x Rotations
             REAL val_x = weight*delx[0];
             REAL val_y = weight*delx[1];
@@ -723,7 +723,7 @@ void TPZMixedElasticityND::Contribute(TPZVec<TPZMaterialData> &datavec, REAL wei
             //  Matrix 54
             // Translations x Translations
             for(int d=0; d<fDimension; d++)
-                {ek(d + firstequation_URB, d + firstequation_FRB) += weight;}
+                {ek(d + firstequation_URB, d + firstequation_FRB) -= weight;}
             // Translations x Rotations
             if(fDimension==3){
                 ek(1 + firstequation_URB + fDimension, 2 + firstequation_FRB) += val_x;
