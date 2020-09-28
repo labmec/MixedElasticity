@@ -84,6 +84,8 @@
 
 #include "TPZAnalyticSolution.h"
 
+#include "TPZMHMixedHybridMeshControl.h"
+
 #include <cmath>
 #include <set>
 
@@ -173,9 +175,11 @@ void CreateCondensedElements(TPZCompMesh *cmesh);
 
 void Error(TPZCompMesh *hdivmesh, std::ostream &out, int p, int ndiv);
 
+void InsertMaterialObjects(TPZCompMesh &cmeshref);
+
 //Variáveis globais do problema:
 
-const int dim = 3; // Dimension of the problem
+const int dim = 2; // Dimension of the problem
 const int matID = 1; // Material of the volumetric element
 const int matLagrange = -10; // Material of the Lagrange multipliers
 const int matBCbott = -1, matBCtop = -2, matBCleft = -3, matBCright = -4; // Materials of the boundary conditions
@@ -205,28 +209,6 @@ std::string ConfigRootname[5] = {
 
 
 
-//void AddMultiphysicsInterfaces(TPZCompMesh &cmesh, int matfrom, int mattarget) {
-//    TPZGeoMesh *gmesh = cmesh.Reference();
-//    int64_t nel = gmesh->NElements();
-//    for (int64_t el = 0; el < nel; el++) {
-//        TPZGeoEl *gel = gmesh->Element(el);
-//        if (gel->MaterialId() != matfrom) {
-//            continue;
-//        }
-//
-//        int nsides = gel->NSides();
-//
-//        TPZGeoElSide gelside(gel, nsides - 1);
-//        TPZStack<TPZCompElSide> celstack;
-//        gelside.EqualLevelCompElementList(celstack, 0, 0);
-//        if (celstack.size() != 2) {
-//            DebugStop();
-//        }
-//        gel->SetMaterialId(mattarget);
-//        int64_t index;
-//        new TPZMultiphysicsInterfaceElement(cmesh, gel, index, celstack[1], celstack[0]);
-//    }
-//}
 
 void AddMultiphysicsInterfaces(TPZCompMesh &cmesh) {
     TPZGeoMesh *gmesh = cmesh.Reference();
@@ -785,20 +767,10 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
 
 }
 
-TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
-
-    //Creating computational mesh:
-    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-    cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
-    cmesh->SetDimModel(dim); //Insere dimensão do modelo
-    cmesh->SetAllCreateFunctionsMultiphysicElem();
-
-    // Criando material:
-
-    // example is initialized in the calling method
-    //    example.fProblemType = TElasticityExample1::EThiago;
-    //    example.fStressState   = TElasticityExample1::EPlaneStrain;
-
+void InsertMaterialObjects(TPZCompMesh &cmeshref)
+{
+    TPZCompMesh *cmesh = &cmeshref;
+    int dim = cmesh->Dimension();
     REAL E = 0.; //* @param E elasticity modulus
     REAL nu = 0.; //* @param nu poisson coefficient
 
@@ -897,7 +869,24 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     //    TPZMaterial * BCPoint = material->CreateBC(material, matPoint, pointtype, val3, val4); //Cria material que implementa um ponto para a pressão
     //    cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
 
+}
 
+TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
+
+    //Creating computational mesh:
+    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
+    cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
+    cmesh->SetDimModel(dim); //Insere dimensão do modelo
+    cmesh->SetAllCreateFunctionsMultiphysicElem();
+
+    // Criando material:
+
+    // example is initialized in the calling method
+    //    example.fProblemType = TElasticityExample1::EThiago;
+    //    example.fStressState   = TElasticityExample1::EPlaneStrain;
+
+
+    InsertMaterialObjects(*cmesh);
 
 
 
@@ -1232,45 +1221,43 @@ int main(int argc, char *argv[]) {
                 gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 
             }
+            TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
+            {
+                TPZCheckGeom check(gmesh);
+                check.UniformRefine(2);
+            }
+            
+            TPZVec<int64_t> coarseindices(gmesh->NElements());
+            int64_t count = 0;
+            int64_t nel = gmesh->NElements();
+            for (int64_t el=0; el<nel; el++) {
+                TPZGeoEl *gel = gmesh->Element(el);
+                if(gel && gel->Dimension() == gmesh->Dimension() && gel->Level()==1)
+                {
+                    coarseindices[count++] = el;
+                }
+            }
+            coarseindices.resize(count);
+            TPZMHMixedHybridMeshControl control(gmesh);
+            control.DefinePartitionbyCoarseIndices(coarseindices);
+            control.fMaterialIds = {1};
+            control.fMaterialBCIds = {-1,-2,-3,-4,-5,-6};
+            control.SetProblemType(TPZMHMeshControl::EElasticity2D);
+            InsertMaterialObjects(control.CMesh());
+            control.BuildComputationalMesh(true);
+            cmesh_m_HDiv = control.CMesh();
+            
+            
+            
 #ifdef PZDEBUG
             std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
             std::ofstream filegvtk("MalhaGeo.vtk"); //Prints the geometric mesh in vtk format
             gmesh->Print(fileg);
             TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
 #endif
-            //Creating computational mesh:
-            TPZCompMesh *cmesh_S_HDiv = CMesh_S(gmesh, stressPOrder); //Creates the computational mesh for the stress field
-            ChangeInternalOrder(cmesh_S_HDiv, stressInternalPOrder);
-            TPZCompMesh *cmesh_U_HDiv = CMesh_U(gmesh, displacementPOrder); //Creates the computational mesh for the displacement field
-            TPZCompMesh *cmesh_P_HDiv = CMesh_P(gmesh, rotationPOrder, hx / nelx); //Creates the computational mesh for the rotation field
+//            TPZCompMesh *cmesh_P_HDiv = CMesh_P(gmesh, rotationPOrder, hx / nelx); //Creates the computational mesh for the rotation field
 
 
-            //TPZCompMesh *cmesh_m_HDiv = CMesh_Girk(gmesh, RibpOrder); //Creates the multi-physics computational mesh
-            TPZCompMesh *cmesh_m_HDiv = CMesh_m(gmesh, stressInternalPOrder);
-            //TPZCompMesh *cmesh_m_HDiv = CMesh_AxiS(gmesh, InternalpOrder,  Example);
-#ifdef PZDEBUG
-            {
-                std::ofstream filecS("MalhaC_S.txt"); //Prints the stress computational mesh in txt format
-                std::ofstream filecU("MalhaC_U.txt"); //Prints the displacement computational mesh in txt format
-                std::ofstream filecP("MalhaC_P.txt"); //Prints the rotation computational mesh in txt format
-                cmesh_S_HDiv->Print(filecS);
-                cmesh_U_HDiv->Print(filecU);
-                cmesh_P_HDiv->Print(filecP);
-            }
-#endif
-
-            TPZManVector<TPZCompMesh*, 3> meshvector_HDiv(3);
-            meshvector_HDiv[0] = cmesh_S_HDiv;
-            meshvector_HDiv[1] = cmesh_U_HDiv;
-            meshvector_HDiv[2] = cmesh_P_HDiv;
-            TPZBuildMultiphysicsMesh::AddElements(meshvector_HDiv, cmesh_m_HDiv);
-            TPZBuildMultiphysicsMesh::AddConnects(meshvector_HDiv, cmesh_m_HDiv);
-            TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector_HDiv, cmesh_m_HDiv);
-            cmesh_m_HDiv->LoadReferences();
-
-            //            AddMultiphysicsInterfaces(*cmesh_m_HDiv);
-
-            //CreateCondensedElements(cmesh_m_HDiv);
 
 #ifdef PZDEBUG
             std::ofstream fileg1("MalhaGeo2.txt");
@@ -1284,19 +1271,7 @@ int main(int argc, char *argv[]) {
             bool optimizeBandwidth = true;
             cmesh_m_HDiv->InitializeBlock();
             
-            TPZCompMesh *cmesh = cmesh_m_HDiv;
-            TPZManVector<TPZCompMesh *> meshvector = meshvector_HDiv;
-            if(1)
-            {
-                TPZCompMesh * cmesh_m_Hybrid;
-                TPZManVector<TPZCompMesh*, 3> meshvector_Hybrid(3);
-                TPZHybridizeHDiv hybridizer;
-                bool group_element = true;
-                tie(cmesh_m_Hybrid, meshvector_Hybrid) = hybridizer.Hybridize(cmesh_m_HDiv, meshvector_HDiv, group_element, -1.);
-                cmesh_m_Hybrid->InitializeBlock();
-                cmesh = cmesh_m_Hybrid;
-                meshvector = meshvector_Hybrid;
-            }
+            TPZCompMesh *cmesh = cmesh_m_HDiv.operator->();
             TPZAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
 #ifdef USING_MKL
             TPZSymetricSpStructMatrix matskl(cmesh);
@@ -1345,7 +1320,7 @@ int main(int argc, char *argv[]) {
 
             }
 #endif
-            TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(meshvector, cmesh);
+            cmesh_m_HDiv->LoadSolutionFromMultiPhysics();
 
             if (plotting) {
                 std::string plotfile;
@@ -1446,22 +1421,6 @@ int main(int argc, char *argv[]) {
 
 
             an.CleanUp();
-
-            if(cmesh != cmesh_m_HDiv)
-            {
-                delete cmesh;
-                for (int i = meshvector.size() - 1; i >= 0; i--) {
-                    meshvector[i]->CleanUp();
-                    delete meshvector[i];
-                }
-            }
-            delete cmesh_m_HDiv;
-            for (int i = meshvector_HDiv.size() - 1; i >= 0; i--) {
-                meshvector_HDiv[i]->CleanUp();
-                delete meshvector_HDiv[i];
-            }
-            delete gmesh;
-
         }
     }
 
