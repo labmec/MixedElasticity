@@ -204,6 +204,12 @@ public:
 
     /** @brief Calculates the element stiffness matrix - simulate compaction as aditional variable */
     virtual void Contribute(TPZVec<TPZMaterialData> &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) override;
+    
+    /** @brief Calculates the element stiffness matrix using 3 spaces - Stress tensor, displacement, and skew-symmetric tensor (for weak symmetry) */
+    virtual void Contribute_3spaces(TPZVec<TPZMaterialData> &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef);
+    
+    /** @brief Calculates the element stiffness matrix using 5 spaces - 3 from Contribute_3spaces() + Rigid body motions, and distributed forces */
+    virtual void Contribute_5spaces(TPZVec<TPZMaterialData> &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef);
 
     /** @brief Calculates the element stiffness matrix - simulate compaction as aditional variable */
     //    virtual void Contribute(TPZVec<TPZMaterialData> &data, REAL weight, TPZFMatrix<STATE> &ef)
