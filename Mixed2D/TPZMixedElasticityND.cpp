@@ -187,6 +187,13 @@ void TPZMixedElasticityND::ElasticityModulusTensor(TPZFMatrix<STATE> &MatrixElas
     {
         DebugStop();
     }
+#ifdef LOG4CXX
+    if(logdata->isDebugEnabled()){
+        std::stringstream sout;
+        MatrixElast.Print("A",sout,EMathematicaInput);
+        LOGPZ_DEBUG(logdata,sout.str());
+    }
+#endif //LOG4CXX
 }
 
 void TPZMixedElasticityND::ComputeDeformationVector(TPZVec<STATE> &PhiStress, TPZVec<STATE> &APhiStress, TElasticityAtPoint &elast) {
@@ -194,7 +201,6 @@ void TPZMixedElasticityND::ComputeDeformationVector(TPZVec<STATE> &PhiStress, TP
     if(fDimension == 3) matdim = 9;
     TPZFNMatrix<81, STATE> MatrixElast(matdim, matdim, 0.);
     ElasticityModulusTensor(MatrixElast, elast);
-
     for (int iq = 0; iq < matdim; iq++) {
         APhiStress[iq] = 0.;
         for (int jq = 0; jq < matdim; jq++) {

@@ -88,7 +88,7 @@
 #include <set>
 
 #ifdef LOG4CXX
-static LoggerPtr logger(Logger::getLogger("pz.elasticity"));
+static LoggerPtr logger(Logger::getLogger("pz.mixedelasticity"));
 #endif
 
 TPZAnalyticSolution *gAnalytic = 0;
@@ -201,7 +201,7 @@ REAL AxiArea(TPZGeoMesh * gmesh, std::set<int> matids);
 STATE IntegrateBottom(TPZCompMesh *cmesh, int matid);
 
 enum EConfig {
-    EThiago = 0, EAxiSymmetric = 1, EThiagoPlus = 2, EAxiSymmetricPlus = 3, EThiagoPlusPlus = 4
+    EThiago = 0, EAxiSymmetric = 1, EThiagoPlus = 2, EAxiSymmetricPlus = 3, EThiagoPlusPlus = 4, EPedro = 5
 };
 
 std::string ConfigRootname[5] = {
@@ -1169,7 +1169,7 @@ int main(int argc, char *argv[]) {
 #ifdef LOG4CXX
     InitializePZLOG();
 #endif
-    EConfig conf = EThiago;
+    EConfig conf = EPedro;
     int initial_p = 1;
     int final_p = 1;
     int initial_h = 0;
@@ -1261,6 +1261,26 @@ int main(int argc, char *argv[]) {
             y0 = -1;
         }
             break;
+        case EPedro:{
+            if(dim == 2)
+            {
+                TElasticity2DAnalytic *elas = new TElasticity2DAnalytic;
+                elas->gE = 1.;
+                elas->gPoisson = 0.2;
+                elas->fProblemType = TElasticity2DAnalytic::ERot;
+                rootname = ConfigRootname[conf] + "_Rot";
+                elas->fPlaneStress = 1;
+                gAnalytic = elas;
+            }
+            else
+                DebugStop();
+            hx = 2;
+            hy = 2;
+            x0 = -1;
+            y0 = -1;
+
+            break;
+        }
         default:
             DebugStop();
             break;
@@ -1448,9 +1468,9 @@ int main(int argc, char *argv[]) {
                 scalnames.Push("SigmaX");
                 scalnames.Push("SigmaY");
                 scalnames.Push("TauXY");
-                vecnames.Push("Flux");
                 vecnames.Push("displacement");
                 vecnames.Push("Stress");
+                vecnames.Push("Flux");
                 int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
                 an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
