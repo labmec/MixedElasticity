@@ -91,6 +91,7 @@
 
 #ifdef LOG4CXX
 static LoggerPtr logger(Logger::getLogger("pz.elasticity"));
+static LoggerPtr loggerconfig(Logger::getLogger("pz.hdiv.vecconfig"));
 #endif
 
 TPZAnalyticSolution *gAnalytic = 0;
@@ -179,7 +180,7 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref);
 
 //Variáveis globais do problema:
 
-const int dim = 2; // Dimension of the problem
+const int dim = 3; // Dimension of the problem
 const int matID = 1; // Material of the volumetric element
 const int matLagrange = -10; // Material of the Lagrange multipliers
 const int matBCbott = -1, matBCtop = -2, matBCleft = -3, matBCright = -4; // Materials of the boundary conditions
@@ -767,6 +768,7 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
 
 }
 
+
 void InsertMaterialObjects(TPZCompMesh &cmeshref)
 {
     TPZCompMesh *cmesh = &cmeshref;
@@ -802,11 +804,25 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
             plainStress = 1;
         }
     }
-    TPZMixedElasticityMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plainStress, dim);
+    TPZMixedElasticityND * material = new TPZMixedElasticityND(matID, E, nu, fx, fy, plainStress, dim);
 
     if (TElasticityExample1::fStressState == TElasticityExample1::EAxiSymmetric) {
         material->SetAxisSymmetric();
     }
+    
+#ifdef LOG4CXX
+    if(loggerconfig->isDebugEnabled())
+    {
+        REAL E,nu;
+        material->GetElasticity(E, nu);
+        TPZMixedElasticityND::TElasticityAtPoint elast(E,nu);
+        TPZFMatrix<STATE> A;
+        material->ElasticityModulusTensor(A, elast);
+        std::stringstream sout;
+        A.Print("A = ",sout,EMathematicaInput);
+        LOGPZ_DEBUG(loggerconfig,sout.str())
+    }
+#endif
     material->SetForcingFunction(gAnalytic->ForcingFunction());
     // Inserindo material na malha
     //    TPZAutoPointer<TPZFunction<STATE> > fp = new TPZDummyFunction<STATE> (f_source);
@@ -1242,7 +1258,13 @@ int main(int argc, char *argv[]) {
             control.DefinePartitionbyCoarseIndices(coarseindices);
             control.fMaterialIds = {1};
             control.fMaterialBCIds = {-1,-2,-3,-4,-5,-6};
-            control.SetProblemType(TPZMHMeshControl::EElasticity2D);
+            if(dim == 2)
+            {
+                control.SetProblemType(TPZMHMeshControl::EElasticity2D);
+            } else if(dim == 3)
+            {
+                control.SetProblemType(TPZMHMeshControl::EElasticity3D);
+            }
             InsertMaterialObjects(control.CMesh());
             control.BuildComputationalMesh(true);
             cmesh_m_HDiv = control.CMesh();
@@ -1260,11 +1282,16 @@ int main(int argc, char *argv[]) {
 
 
 #ifdef PZDEBUG
-            std::ofstream fileg1("MalhaGeo2.txt");
-            gmesh->Print(fileg1); //Prints the geometric mesh in txt format
+            {
+                std::ofstream fileg1("MalhaGeo2.txt");
+                gmesh->Print(fileg1); //Prints the geometric mesh in txt format
 
-            std::ofstream filecm("MalhaC_m.txt");
-            cmesh_m_HDiv->Print(filecm); //Prints the multi-physics computational mesh in txt format
+                std::ofstream filecm("MalhaC_m.txt");
+                cmesh_m_HDiv->Print(filecm); //Prints the multi-physics computational mesh in txt format
+                
+                std::ofstream out("MHMCompMesh.txt");
+                TPZMHMeshControl::PrintMeshInfo(cmesh_m_HDiv.operator->(), out);
+            }
 #endif
 
             //Solving the system:

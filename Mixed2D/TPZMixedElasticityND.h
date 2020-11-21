@@ -17,6 +17,8 @@
  */
 class TPZMixedElasticityND : public TPZDiscontinuousGalerkin {
 
+public:
+    
     struct TElasticityAtPoint
     {
         /** @brief Elasticity modulus */
@@ -122,6 +124,12 @@ public:
         flambda_const = (E * nu) / ((1 + nu)*(1 - 2 * nu));
         fmu_const = E / (2 * (1 + nu));
 
+    }
+    
+    void GetElasticity(REAL &E, REAL &nu)
+    {
+        E = fE_const;
+        nu = fnu_const;
     }
 
     /// Set a variable elasticity and poisson coefficient
