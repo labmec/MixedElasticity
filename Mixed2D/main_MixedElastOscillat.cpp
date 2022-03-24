@@ -4,7 +4,6 @@
 #include "pzgeoelbc.h"
 #include <TPZGeoElement.h>
 
-#include "pzmat2dlin.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSkylineNSymStructMatrix.h"
 #include "TPZCompelDiscScaled.h"
@@ -30,32 +29,24 @@
 
 #include "tpzintpoints.h"
 
-#include "TPZMatElasticity2D.h"
 #include "TPZInterfaceEl.h"
-#include "pzdiscgal.h"
 
 #include "TPZRefPattern.h"
 #include "tpzgeoelrefpattern.h"
-#include "tpzcompmeshreferred.h"
 #include "tpzautopointer.h"
-#include "pzbndcond.h"
-#include "pzanalysis.h"
+#include "TPZBndCondT.h"
+#include "TPZLinearAnalysis.h"
 #include <tpzarc3d.h>
 
-#include "TPZParSkylineStructMatrix.h"
 #include "pzstepsolver.h"
-#include "pzstrmatrix.h"
+#include "TPZStructMatrix.h"
 #include "TPZFrontNonSym.h"
 #include "TPZFrontSym.h"
-#include "TPBSpStructMatrix.h"
 #include "TPZSpStructMatrix.h"
 #include "pzbstrmatrix.h"
-#include "pzl2projection.h"
 #include "pzfstrmatrix.h"
 #include "pzskylstrmatrix.h"
 
-#include "pzpoisson3d.h"
-#include "pzpoisson3dreferred.h"
 #include "meshgen.h"
 #include "TPZGmshReader.h"
 
@@ -77,7 +68,8 @@
 #include "TPZMultiphysicsInterfaceEl.h"
 #include "TPZHybridizeHDiv.h"
 
-#include "TPZMixedElasticityMaterial.h"
+#include "TPZMixedElasticityND.h"
+#include "TPZNUllMaterial.h"
 #include "TPZAnalyticSolution.h"
 
 #include "TPZGenGrid2D.h"
@@ -260,8 +252,7 @@ void AddMultiphysicsInterfaces(TPZCompMesh &cmesh) {
                             " side " << neighbour.Side() <<
                             " and interface element " << gelside.Element()->Index() << std::endl;
                     TPZGeoElBC gelbc(gelside, matID);
-                    int64_t index;
-                    TPZMultiphysicsInterfaceElement *intf = new TPZMultiphysicsInterfaceElement(cmesh, gelbc.CreatedElement(), index, celneigh, celside);
+                    TPZMultiphysicsInterfaceElement *intf = new TPZMultiphysicsInterfaceElement(cmesh, gelbc.CreatedElement(), celneigh, celside);
                     intf->SetLeftRightElementIndices(LeftElIndices, RightElIndices);
                 }
                 neighbour = neighbour.Neighbour();
@@ -426,9 +417,9 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
 
 }
 
-TPZCompEl *CreateInterfaceEl(TPZGeoEl *gel, TPZCompMesh &mesh, int64_t &index) {
+TPZCompEl *CreateInterfaceEl(TPZGeoEl *gel, TPZCompMesh &mesh) {
     if (!gel->Reference() && gel->NumInterfaces() == 0)
-        return new TPZInterfaceElement(mesh, gel, index);
+        return new TPZInterfaceElement(mesh, gel);
 
     return NULL;
 }
@@ -449,7 +440,7 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
     int planeStress = 0.; //* @param plainstress = 1 \f$ indicates use of plain stress
     
-    TPZMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, planeStress, dim);
+    auto * material = new TPZMixedElasticityND(matID, E, nu, fx, fy, planeStress, dim);
     cmesh->InsertMaterialObject(material); //Insere material na malha
     
     //TPZMaterial * material2 = new TPZMixedElasticityMaterialLocal(3,E,nu,fx,fy,plain,dim);
@@ -462,28 +453,28 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
 
     
     //Boundary conditions:
-    TPZFMatrix<STATE> val1(2, 2, 0.), val2(2, 1, 0.);
-    TPZFMatrix<STATE> val2s(2, 1, 0.);
-    val2s(0, 0) = 10.0; // vx -> 0
-    val2s(1, 0) = 0.0; // vy -> 0
+    TPZFMatrix<STATE> val1(2, 2, 0.);
+    TPZManVector<STATE> val2s(2, 0.), val2(2, 0.);
+    val2s[0] = 10.0; // vx -> 0
+    val2s[1] = 0.0; // vy -> 0
 
-    TPZMaterial * BCond0 = material->CreateBC(material, matBCbott, neumann, val1, val2); //Cria material que implementa a condição de contorno inferior
+    auto * BCond0 = material->CreateBC(material, matBCbott, neumann, val1, val2); //Cria material que implementa a condição de contorno inferior
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
-    TPZMaterial * BCond1 = material->CreateBC(material, matBCtop, neumann, val1, val2); //Cria material que implementa a condicao de contorno superior
+    auto * BCond1 = material->CreateBC(material, matBCtop, neumann, val1, val2); //Cria material que implementa a condicao de contorno superior
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
-    TPZMaterial * BCond2 = material->CreateBC(material, matBCleft, neumann, val1, val2s); //Cria material que implementa a condicao de contorno esquerda
+    auto * BCond2 = material->CreateBC(material, matBCleft, neumann, val1, val2s); //Cria material que implementa a condicao de contorno esquerda
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
-    TPZMaterial * BCond3 = material->CreateBC(material, matBCright, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    auto * BCond3 = material->CreateBC(material, matBCright, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
-    TPZMaterial * BCond4 = material->CreateBC(material, 2, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    auto * BCond4 = material->CreateBC(material, 2, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
     cmesh->InsertMaterialObject(BCond4); //Insere material na malha
 
-    val2s(0, 0) = 0;
-    val2s(1, 0) = 0;
+    val2s[0] = 0;
+    val2s[1] = 0;
     cmesh->InsertMaterialObject(material->CreateBC(material, matLagrange, neumann, val1, val2s)); //Insere material na malha
 
     //Criando elementos computacionais que gerenciarão o espaco de aproximacao da malha:
@@ -520,7 +511,7 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
         REAL fy = -20.; //* @param fx forcing function \f$ -x = fx \f$
         int plain = 0.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-        TPZMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
+        auto * material = new TPZMixedElasticityND(matID, E, nu, fx, fy, plain, dim);
 
         cmesh->InsertMaterialObject(material); //Insere material na malha
 
@@ -536,8 +527,7 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
                 if (materialids.find(matid) == materialids.end()) {
                     continue;
                 }
-                int64_t index;
-                new TPZCompElDiscScaled(*cmesh, gel, index);
+                new TPZCompElDiscScaled(*cmesh, gel);
                 gel->ResetReference();
             }
         }
@@ -578,7 +568,7 @@ TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
         REAL fy = -20.; //* @param fx forcing function \f$ -x = fx \f$
         int plain = 0.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-        TPZMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
+        TPZMaterial * material = new TPZMixedElasticityND(matID, E, nu, fx, fy, plain, dim);
 
         cmesh->InsertMaterialObject(material); //Insere material na malha
 
@@ -645,7 +635,7 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
     cmesh->ApproxSpace().CreateDisconnectedElements(true);
 
     //Criando material cujo nSTATE = 1:
-    TPZMaterial *material = new TPZMatPoisson3d(matID, dim); //criando material que implementa a formulacao fraca do problema modelo
+    auto *material = new TPZNullMaterial<>(matID, dim); //criando material que implementa a formulacao fraca do problema modelo
 
     cmesh->InsertMaterialObject(material); //Insere material na malha
 
@@ -699,8 +689,7 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
             if (materialids.find(matid) == materialids.end()) {
                 continue;
             }
-            int64_t index;
-            new TPZCompElDiscScaled(*cmesh, gel, index);
+            new TPZCompElDiscScaled(*cmesh, gel);
             gel->ResetReference();
         }
     }
@@ -756,7 +745,7 @@ TPZCompMesh *CMesh_Girk(TPZGeoMesh *gmesh, int pOrder) {
     REAL fy = -32.69; //* @param fx forcing function \f$ -x = fx \f$
     int plain = 1.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-    TPZMixedElasticityMaterial * material1 = new TPZMixedElasticityMaterial(1, E, nu, fx, fy, plain, dim);
+    TPZMixedElasticityND * material1 = new TPZMixedElasticityND(1, E, nu, fx, fy, plain, dim);
     //TPZMixedElasticityMaterial * material2 = new TPZMixedElasticityMaterial(3,E,nu,fx,fy,plain,dim);
     //material1->SetAxisSymmetric();
     //material2->SetAxisSymmetric();
@@ -775,37 +764,36 @@ TPZCompMesh *CMesh_Girk(TPZGeoMesh *gmesh, int pOrder) {
 
     //Condições de contorno:
 
-    TPZFMatrix<REAL> val1(2, 2, 0.), val2(2, 1, 0.);
+    TPZFMatrix<REAL> val1(2, 2, 0.);
+    TPZManVector<REAL> val2(2, 0.);
     REAL x;
-    val2(0, 0) = 0; // vx -> 0 //val2 represent norm stress;
-    val2(1, 0) = 0; // vy -> 0
     val1(0, 0) = 0;
-    val1(1, 1) = material1->gBigNumber;
+    val1(1, 1) = material1->BigNumber();
 
-    TPZMaterial * BCond0 = material1->CreateBC(material1, -3, mixed, val1, val2); //Cria material que implementa a condição de contorno inferior
+    auto * BCond0 = material1->CreateBC(material1, -3, mixed, val1, val2); //Cria material que implementa a condição de contorno inferior
     //BCond0->SetForcingFunction(p_exact1, bc_inte_order);
     //BCond0->SetForcingFunction(solucao_exact,bc_inte_order);
     //BCond0->SetForcingFunction(example.ValueFunction());
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
-    TPZMaterial * BCond1 = material1->CreateBC(material1, -2, neumann, val1, val2); //Cria material que implementa a condicao de contorno superior
+    auto * BCond1 = material1->CreateBC(material1, -2, neumann, val1, val2); //Cria material que implementa a condicao de contorno superior
     //BCond1->SetForcingFunction(example.ValueFunction());
     //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
     //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
-    val2(1, 0) = 43.533;
-    val2.Zero();
+    val2[1] = 43.533;
+    val2.Fill(0.);
     //val1(1,0) = material1->gBigNumber;
     //val1(0,1) = material1->gBigNumber;
-    TPZMaterial * BCond2 = material1->CreateBC(material1, -1, mixed, val1, val2); //Cria material que implementa a condicao de contorno esquerda
+    auto * BCond2 = material1->CreateBC(material1, -1, mixed, val1, val2); //Cria material que implementa a condicao de contorno esquerda
     //BCond2->SetForcingFunction(example.ValueFunction());
     //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
     //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
-    val2.Zero();
-    TPZMaterial * BCond3 = material1->CreateBC(material1, 2, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+    val2.Fill(0.);
+    auto * BCond3 = material1->CreateBC(material1, 2, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
     //BCond3->SetForcingFunction(example.ValueFunction());
     //BCond3->SetForcingFunction(p_exact1,bc_inte_order);
     //BCond3->SetForcingFunction(solucao_exact,bc_inte_order);
@@ -855,7 +843,7 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
     REAL fy = -20.; //* @param fx forcing function \f$ -x = fx \f$
     int plain = 0.; //* @param plainstress = 1 \f$ indicates use of plainstress
 
-    TPZMixedElasticityMaterial * material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, plain, dim);
+    TPZMixedElasticityND * material = new TPZMixedElasticityND(matID, E, nu, fx, fy, plain, dim);
     material->SetAxisSymmetric();
     material->SetPlaneStrain();
     //material->SetForcingFunction(example.ForcingFunction());
@@ -873,30 +861,29 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
 
     //Condições de contorno:
 
-    TPZFMatrix<REAL> val1(2, 2, 0.), val2(2, 1, 0.);
-    val2(0, 0) = 0; // vx -> 0 //val2 represent norm stress;
-    val2(1, 0) = 0; // vy -> 0
+    TPZFMatrix<REAL> val1(2, 2, 0.);
+    TPZManVector<REAL> val2(2, 0.);
     //val1(0,0) = 100.0;
 
-    TPZMaterial * BCond0 = material->CreateBC(material, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
+    auto * BCond0 = material->CreateBC(material, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
     //BCond0->SetForcingFunction(p_exact1, bc_inte_order);
     //BCond0->SetForcingFunction(solucao_exact,bc_inte_order);
     //BCond0->SetForcingFunction(example.ValueFunction());
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
-    TPZMaterial * BCond1 = material->CreateBC(material, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
+    auto * BCond1 = material->CreateBC(material, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
     //BCond1->SetForcingFunction(example.ValueFunction());
     //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
     //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
-    TPZMaterial * BCond2 = material->CreateBC(material, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
+    auto * BCond2 = material->CreateBC(material, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
     //BCond2->SetForcingFunction(example.ValueFunction());
     //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
     //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
-    TPZMaterial * BCond3 = material->CreateBC(material, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+    auto * BCond3 = material->CreateBC(material, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
     //BCond3->SetForcingFunction(example.ValueFunction());
     //BCond3->SetForcingFunction(p_exact1,bc_inte_order);
     //BCond3->SetForcingFunction(solucao_exact,bc_inte_order);
@@ -940,9 +927,9 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
     int planeStress = 0.; //* @param plainstress = 1 \f$ indicates use of plain stress
     
-    TPZMixedElasticityMaterial *material = new TPZMixedElasticityMaterial(matID, E, nu, fx, fy, planeStress, dim);
+    TPZMixedElasticityND *material = new TPZMixedElasticityND(matID, E, nu, fx, fy, planeStress, dim);
     
-    if(example) material->SetForcingFunction(example->ForcingFunction());
+    if(example) material->SetForcingFunction(example->ForceFunc(),5);
     
     TElasticity2DAnalytic *elastc_examp = dynamic_cast<TElasticity2DAnalytic *>(example);
     if(!elastc_examp) DebugStop();
@@ -1007,29 +994,27 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
 //--------------------------------------------------------------------
     //Condições de contorno:
 
-    TPZFMatrix<REAL> val1(2, 2, 0.), val2(2, 1, 0.);
-    val2(0, 0) = 0; // vx -> 0 //val2 represent norm stress;
-    val2(1, 0) = 0; // vy -> 0
-    //val1(0,0) = 100.0;
+    TPZFMatrix<REAL> val1(2, 2, 0.);
+    TPZManVector<REAL> val2(2, 0.);
 
-    TPZMaterial * BCond0 = material->CreateBC(mat, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
-    if(example) BCond0->SetForcingFunction(example->Exact());
+    auto * BCond0 = material->CreateBC(mat, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
+    if(example) BCond0->SetForcingFunctionBC(example->ExactSolution());
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
-    TPZMaterial * BCond1 = material->CreateBC(mat, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-     if(example) BCond1->SetForcingFunction(example->Exact());
+    auto * BCond1 = material->CreateBC(mat, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
+     if(example) BCond1->SetForcingFunctionBC(example->ExactSolution());
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
-    TPZMaterial * BCond2 = material->CreateBC(mat, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
-     if(example) BCond2->SetForcingFunction(example->Exact());
+    auto * BCond2 = material->CreateBC(mat, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
+     if(example) BCond2->SetForcingFunctionBC(example->ExactSolution());
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
-    TPZMaterial * BCond3 = material->CreateBC(mat, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-     if(example) BCond3->SetForcingFunction(example->Exact());
+    auto * BCond3 = material->CreateBC(mat, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+     if(example) BCond3->SetForcingFunctionBC(example->ExactSolution());
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
-    TPZMaterial * BCond4 = material->CreateBC(mat, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
-     if(example) BCond4->SetForcingFunction(example->Exact());
+    auto * BCond4 = material->CreateBC(mat, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
+     if(example) BCond4->SetForcingFunctionBC(example->ExactSolution());
     cmesh->InsertMaterialObject(BCond4); //Insere material na malha
 
     //Ponto
@@ -1100,12 +1085,11 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         //        EquationDelay[3].fIdf[0] = 0;
         //        EquationDelay[3].fConnect[1] = newconnectindex;
         //        EquationDelay[3].fIdf[1] = 3;
-        int64_t elindex;
-        new TPZCompElLagrange(*cmesh, EquationDelay, elindex);
-        int64_t groupindex;
-        TPZElementGroup *elgr = new TPZElementGroup(*cmesh, groupindex);
+
+        auto ellagrange = new TPZCompElLagrange(*cmesh, EquationDelay);
+        TPZElementGroup *elgr = new TPZElementGroup(*cmesh);
         elgr->AddElement(cel);
-        elgr->AddElement(cmesh->Element(elindex));
+        elgr->AddElement(ellagrange);
         TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr, false);
     }
     cmesh->InitializeBlock();
@@ -1242,7 +1226,7 @@ STATE IntegrateBottom(TPZCompMesh *cmesh, int targetmatid) {
 
 
 int main(int argc, char *argv[]) {
-    TPZMaterial::gBigNumber = 1.e16;
+//    TPZMaterial::gBigNumber = 1.e16;
 
 #ifdef LOG4CXX
     InitializePZLOG();
@@ -1420,11 +1404,11 @@ int main(int argc, char *argv[]) {
             tie(cmesh_m_Hybrid, meshvector_Hybrid) = hybridizer.Hybridize(cmesh_m_HDiv, meshvector_HDiv, true, -1.);
             cmesh_m_Hybrid->InitializeBlock();
 
-            TPZAnalysis an(cmesh_m_Hybrid, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
+            TPZLinearAnalysis an(cmesh_m_Hybrid, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
 #ifdef USING_MKL
             TPZSymetricSpStructMatrix matskl(cmesh_m_Hybrid);
 #else
-            TPZSkylineStructMatrix matskl(cmesh_m_Hybrid); // asymmetric case ***
+            TPZSkylineStructMatrix<STATE> matskl(cmesh_m_Hybrid); // asymmetric case ***
 #endif
             matskl.SetNumThreads(numthreads);
             an.SetStructuralMatrix(matskl);
@@ -1436,7 +1420,8 @@ int main(int argc, char *argv[]) {
             an.Assemble(); //Assembles the global stiffness matrix (and load vector)
             std::cout << "Assemble finished." << std::endl;
 
-            TPZManVector<REAL, 6> Errors(cmesh_m_HDiv->FindMaterial(matID)->NEvalErrors());
+            TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(cmesh_m_HDiv->FindMaterial(matID));
+            TPZManVector<REAL, 6> Errors(materr->NEvalErrors());
             //TElasticityExample1 example;
             an.SetExact(example->ExactSolution());
             //            an.PostProcessError(Errors,std::cout);
@@ -1445,7 +1430,7 @@ int main(int argc, char *argv[]) {
             //Imprimir Matriz de rigidez Global:
             if (false) {
                 std::ofstream filestiff("stiffness.nb");
-                an.Solver().Matrix()->Print("K1 = ", filestiff, EMathematicaInput);
+                an.MatrixSolver<STATE>().Matrix()->Print("K1 = ", filestiff, EMathematicaInput);
 
                 std::ofstream filerhs("rhs.nb");
                 an.Rhs().Print("R = ", filerhs, EMathematicaInput);

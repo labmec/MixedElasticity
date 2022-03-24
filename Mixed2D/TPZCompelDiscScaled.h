@@ -32,17 +32,10 @@ public:
     }
     
     /** @brief Constructor of the discontinuous element associated with geometric element */
-    TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref,int64_t &index) : TPZCompElDisc(mesh,ref,index){
-        //ComputeScale();
-    }
+    TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref);
 
     /** @brief Copy constructor */
     TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy) : TPZCompElDisc(mesh,copy), fScale(copy.fScale){
-    }
-
-    /** @brief Copy constructor */
-    TPZCompElDiscScaled(TPZCompMesh &mesh, const TPZCompElDiscScaled &copy, int64_t &index) : TPZCompElDisc(mesh, copy, index), fScale(copy.fScale) {
-        
     }
     
     /** @brief Default destructor */

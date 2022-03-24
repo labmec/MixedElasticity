@@ -9,13 +9,24 @@
 #include <iostream>
 
 #include "TPZMaterial.h"
-#include "pzdiscgal.h"
+#include "TPZMaterialDataT.h"
+#include "TPZMatBase.h"
+#include "TPZMatCombinedSpaces.h"
+#include "TPZMatErrorCombinedSpaces.h"
+
 
 /**
  * @ingroup material
  * @brief This class implements a two dimensional elastic material in plane stress or strain
  */
-class TPZMixedElasticityMaterialLocal : public TPZDiscontinuousGalerkin {
+class TPZMixedElasticityMaterialLocal : public TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
+TPZMatErrorCombinedSpaces<STATE>> {
+
+// type alias to improve constructor readability
+using TBase = TPZMatBase<STATE, TPZMatCombinedSpacesT<STATE>,
+    TPZMatErrorCombinedSpaces<STATE> >;
+
+
 public:
 
     enum MVoigt {
@@ -46,7 +57,7 @@ public:
     int VariableIndex(const std::string &name);
 
 
-    virtual int NSolutionVariables(int var);
+    virtual int NSolutionVariables(int var) const override;
 
     /** index of Stress */
     int SIndex() {
@@ -63,7 +74,7 @@ public:
         return 2;
     }
 
-    virtual int NEvalErrors();
+    virtual int NEvalErrors() const override;
     
     void ComputeDivergenceOnDeformed(TPZVec<TPZMaterialData> &datavec, TPZFMatrix<STATE> &DivergenceofPhi);
 
@@ -135,12 +146,12 @@ public:
     }
 
     /** @brief Returns the model dimension */
-    int Dimension() const {
+    int Dimension() const override{
         return 2;
     }
 
     /** @brief Returns the number of state variables associated with the material */
-	virtual int NStateVariables() const { return 2; }
+	virtual int NStateVariables() const override{ return 2; }
 
     /** @brief Print the material data*/
     virtual void Print(std::ostream & out = std::cout);
@@ -160,62 +171,45 @@ public:
         return 3;
     }
 
-    /** @name Contribute methods */
+    /** @name Contribute */
     /** @{ */
+    /**
+     * @brief It computes a contribution to the stiffness matrix
+     * and load vector at one integration point.
+     * @param[in] datavec stores all input data
+     * @param[in] weight is the weight of the integration rule
+     * @param[out] ek is the element matrix
+     * @param[out] ef is the rhs vector
+     */
+    virtual void Contribute(const TPZVec<TPZMaterialDataT<STATE>> &datavec,
+                            REAL weight,TPZFMatrix<STATE> &ek,
+                            TPZFMatrix<STATE> &ef) override;
+    /** @name ContributeBC
+        @ingroup Contribute*/
+    /**@{*/
+    /**
+     * @brief It computes a contribution to the stiffness matrix
+     * and load vector at one BC integration point.
+     * @param[in] datavec stores all input data
+     * @param[in] weight is the weight of the integration rule
+     * @param[out] ek is the element matrix
+     * @param[out] ef is the rhs vector
+     * @param[in] bc is the boundary condition material
+     */
+    virtual void ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec,
+                              REAL weight, TPZFMatrix<STATE> &ek,
+                              TPZFMatrix<STATE> &ef,
+                              TPZBndCondT<STATE> &bc) override;
+    /**@}*/
+    /**@}*/
 
-    /** @brief Calculates the element stiffness matrix */
-    virtual void Contribute(TPZMaterialData &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef);
+    /**
+     * @brief Fill material data parameter with necessary requirements for the
+     * Contribute method. Here, in base class, all requirements are considered
+     * as not necessary.
+     */
+    virtual void FillDataRequirements(TPZVec<TPZMaterialDataT<STATE>> &datavec) const override;
 
-    /** @brief Calculates the element stiffness matrix - simulate compaction as aditional variable */
-    virtual void Contribute(TPZVec<TPZMaterialData> &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef);
-
-    /** @brief Calculates the element stiffness matrix - simulate compaction as aditional variable */
-    //    virtual void Contribute(TPZVec<TPZMaterialData> &data, REAL weight, TPZFMatrix<STATE> &ef)
-    //    {
-    //        DebugStop();
-    //    }
-
-    /** @brief Calculates the element stiffness matrix */
-    virtual void Contribute(TPZMaterialData &data, REAL weight, TPZFMatrix<STATE> &ef) {
-        TPZDiscontinuousGalerkin::Contribute(data, weight, ef);
-    }
-
-
-    /** @brief Applies the element boundary conditions Mixed */
-    virtual void ContributeBC(TPZVec<TPZMaterialData> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCond &bc);
-
-
-    /** @brief Applies the element boundary conditions */
-    virtual void ContributeBC(TPZMaterialData &data, REAL weight,
-            TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCond &bc);
-
-    /** @brief Applies the element boundary conditions */
-    virtual void ContributeBC(TPZMaterialData &data, REAL weight,
-            TPZFMatrix<STATE> &ef, TPZBndCond &bc) {
-        TPZDiscontinuousGalerkin::ContributeBC(data, weight, ef, bc);
-    }
-
-    //virtual void FillDataRequirements(TPZMaterialData &data);
-    virtual void FillDataRequirements(TPZMaterialData &data);
-    virtual void FillDataRequirements(TPZVec<TPZMaterialData > &datavec);
-
-    virtual void FillBoundaryConditionDataRequirement(int type, TPZMaterialData &data);
-
-    virtual void ContributeInterface(TPZMaterialData &data, TPZMaterialData &dataleft, TPZMaterialData &dataright, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef) {
-        PZError << "\nFATAL ERROR - Method not implemented: " << __PRETTY_FUNCTION__ << "\n";
-    }
-
-    virtual void ContributeBCInterface(TPZMaterialData &data, TPZMaterialData &dataleft, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCond &bc) {
-        PZError << "\nFATAL ERROR - Method not implemented: " << __PRETTY_FUNCTION__ << "\n";
-    }
-
-    virtual void ContributeInterface(TPZMaterialData &data, TPZMaterialData &dataleft, TPZMaterialData &dataright, REAL weight, TPZFMatrix<STATE> &ef) {
-        PZError << "\nFATAL ERROR - Method not implemented: " << __PRETTY_FUNCTION__ << "\n";
-    }
-
-    virtual void ContributeBCInterface(TPZMaterialData &data, TPZMaterialData &left, REAL weight, TPZFMatrix<STATE> &ef, TPZBndCond &bc) {
-        PZError << "\nFATAL ERROR - Method not implemented: " << __PRETTY_FUNCTION__ << "\n";
-    }
 
     STATE GetLambda() const {
         STATE lambda = (fnu * fE) / ((1. + fnu)*(1. - 2. * fnu));
@@ -254,30 +248,22 @@ public:
     void FillVecShapeIndex(TPZMaterialData &data);
 
 public:
+    /*
+    * @brief Returns the solution associated with the var index based on the
+    * finite element approximation at a point
+    * @param [in] datavec material data associated with a given integration point
+    * @param [in] var index of the variable to be calculated
+    * @param [out] solOut vector to store the solution
+    */
+   void Solution(const TPZVec<TPZMaterialDataT<STATE>> &datavec, int var, TPZVec<STATE> &solOut) override;
 
-    /** @brief Returns the solution associated with the var index based on the finite element approximation */
-    virtual void Solution(TPZMaterialData &data, int var, TPZVec<STATE> &Solout);
+   /**
+    * @brief Calculates the approximation error at a point
+    * @param [in] data material data of the integration point
+    * @param [out] errors calculated errors
+    */
+   void Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, TPZVec<REAL> &errors) override;
 
-    /** @brief Returns the solution associated with the var index based on the finite element approximation */
-    virtual void Solution(TPZVec<TPZMaterialData> &data, int var, TPZVec<STATE> &Solout);
-
-    /** @brief Returns the solution associated with the var index based on the finite element approximation */
-    virtual void SolutionDisc(TPZMaterialData &data, TPZMaterialData &dataleft, TPZMaterialData &dataright, int var, TPZVec<STATE> &Solout) {
-        TPZDiscontinuousGalerkin::SolutionDisc(data, dataleft, dataright, var, Solout);
-    }
-
-    /** @brief Computes the value of the flux function to be used by ZZ error estimator */
-    virtual void Flux(TPZVec<REAL> &x, TPZVec<STATE> &Sol, TPZFMatrix<STATE> &DSol, TPZFMatrix<REAL> &axes, TPZVec<STATE> &flux);
-
-    /** 
-     * @brief Computes the error due to the difference between the interpolated flux \n
-     * and the flux computed based on the derivative of the solution
-     */
-    void Errors(TPZVec<REAL> &x, TPZVec<STATE> &u,
-            TPZFMatrix<STATE> &dudx, TPZFMatrix<REAL> &axes, TPZVec<STATE> &flux,
-            TPZVec<STATE> &u_exact, TPZFMatrix<STATE> &du_exact, TPZVec<REAL> &values); //Cedric
-
-    virtual void Errors(TPZVec<TPZMaterialData> &data, TPZVec<STATE> &u_exact, TPZFMatrix<STATE> &du_exact, TPZVec<REAL> &errors);
 
     /** @brief Returns the elasticity modulus E */
     REAL E() {
@@ -289,11 +275,11 @@ public:
         return fnu;
     }
 
-    virtual int ClassId() const;
+    virtual int ClassId() const override;
 
-    virtual void Read(TPZStream &buf, void *context);
+    virtual void Read(TPZStream &buf, void *context) override;
 
-    virtual void Write(TPZStream &buf, int withclassid) const;
+    virtual void Write(TPZStream &buf, int withclassid) const override;
 
 
 

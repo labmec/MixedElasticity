@@ -5,8 +5,16 @@
 //  Created by Philippe Devloo on 03/05/18.
 //
 
+#include "pzlog.h"
 #include "TPZCompelDiscScaled.h"
 #include <math.h>
+
+
+/** @brief Constructor of the discontinuous element associated with geometric element */
+TPZCompElDiscScaled::TPZCompElDiscScaled(TPZCompMesh &mesh,TPZGeoEl *ref) : TPZCompElDisc(mesh,ref){
+    //ComputeScale();
+}
+
 
 
 void TPZCompElDiscScaled::ComputeScale() {

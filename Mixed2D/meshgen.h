@@ -31,8 +31,6 @@ struct TAnalyticSolution {
     }
 };
 
-#ifdef _AUTODIFF
-
 struct TElasticityExample1 : public TAnalyticSolution {
 
     enum EDefState {
@@ -201,6 +199,5 @@ struct TLaplaceExampleSmooth : public TAnalyticSolution {
 
 };
 
-#endif
 
 #endif

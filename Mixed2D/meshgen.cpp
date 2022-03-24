@@ -8,7 +8,7 @@
 #include "pzcheckgeom.h"
 #include "TPZVTKGeoMesh.h"
 
-#include "pzanalysis.h"
+#include "TPZLinearAnalysis.h"
 #include "pzstepsolver.h"
 
 #include "TPZMaterial.h"
@@ -23,7 +23,6 @@
 
 #include "pzlog.h"
 
-#ifdef _AUTODIFF
 #include "fadType.h"
 
 static FADFADREAL FADsin(FADFADREAL x) {
@@ -703,4 +702,3 @@ TPZAutoPointer<TPZFunction<STATE> > TLaplaceExampleSmooth::ConstitutiveLawFuncti
 
 }
 
-#endif
