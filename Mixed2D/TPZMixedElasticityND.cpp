@@ -868,7 +868,9 @@ void TPZMixedElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &d
         v_2[0] = res[0];
         v_2[1] = res[1];
         if(fDimension == 3) v_2[2] = res[2];
-
+        // std::cout << "x = " << datavec[0].x << std::endl;
+        // std::cout << "V_2 = " << v_2 << std::endl;
+        // std::cout << "tens = " << tens << std::endl;
     }
 
     // Setting the phis
@@ -978,6 +980,10 @@ int TPZMixedElasticityND::VariableIndex(const std::string &name) const {
     if (!strcmp("PrincipalStress1", name.c_str())) return 3;
     if (!strcmp("PrincipalStress2", name.c_str())) return 4;
     if (!strcmp("SigmaX", name.c_str())) return 5;
+    if (!strcmp("SigmaR", name.c_str())) return 30;
+    if (!strcmp("SigmaT", name.c_str())) return 31;
+    if (!strcmp("TauRT", name.c_str())) return 32;
+    if (!strcmp("ExactDisplacement", name.c_str())) return 33;
     if (!strcmp("SigmaY", name.c_str())) return 6;
     if (!strcmp("TauXY", name.c_str())) return 8; //Cedric
     if (!strcmp("Strain", name.c_str())) return 11; //Philippe
@@ -1049,6 +1055,12 @@ int TPZMixedElasticityND::NSolutionVariables(int var) const {
         case 28:
         case 29:
             return 1;
+        case 30:
+        case 31:
+        case 32:
+            return 1;
+        case 33:
+            return 3;
         default:
             return TPZMaterial::NSolutionVariables(var);
     }
@@ -1177,9 +1189,42 @@ void TPZMixedElasticityND::Solution(const TPZVec<TPZMaterialDataT<STATE>> &data,
         Solout[0] = sigma(0, 0);
         return;
     }
+    // SigmaX                
+    if (var == 33) {
+        TPZVec<STATE> u_exact(fDimension,0.);
+        TPZFMatrix<STATE> du_exact(fDimension,fDimension,0.);
+        if (this->fExactSol) {
+            this->fExactSol(data[0].x, u_exact, du_exact);
+        }
+        for (int idf = 0; idf < dim; idf++) {
+            Solout[idf] = u_exact[idf];
+        }
+        return;
+    }
     //  TauXY
     if (var == 8) {
         Solout[0] = 0.5 * (sigma(0, 1) + sigma(1, 0));
+        return;
+    }
+    // SigmaR              
+    if (var == 30) {
+        REAL r = sqrt(x[0]*x[0] + x[1]*x[1]);
+        REAL theta = atan2(x[1],x[0]);
+        Solout[0] = sigma(0,0)*cos(theta)*cos(theta) + 2.*sigma(0,1)*cos(theta)*sin(theta) + sigma(1,1)*sin(theta)*sin(theta);
+        return;
+    }
+    // SigmaT         
+    if (var == 31) {
+        REAL r = sqrt(x[0]*x[0] + x[1]*x[1]);
+        REAL theta = atan2(x[1],x[0]);
+        Solout[0] = sigma(1,1)*cos(theta)*cos(theta) - 2.*sigma(0,1)*cos(theta)*sin(theta) + sigma(0,0)*sin(theta)*sin(theta);
+        return;
+    }
+    // TauRT         
+    if (var == 32) {
+        REAL r = sqrt(x[0]*x[0] + x[1]*x[1]);
+        REAL theta = atan2(x[1],x[0]);
+        Solout[0] = sigma(0,1)*cos(theta)*cos(theta) + (sigma(1,1)-sigma(0,0))*cos(theta)*sin(theta) - sigma(0,1)*sin(theta)*sin(theta);
         return;
     }
     //Strain
@@ -1547,6 +1592,8 @@ fDimension(copy.fDimension),
 fMatrixA(copy.fMatrixA),
 fElasticity(copy.fElasticity),
 fAxisSymmetric(copy.fAxisSymmetric){
+    fExactSol = copy.fExactSol;
+    fExactPOrder = copy.fExactPOrder;
 }
 
 int TPZMixedElasticityND::ClassId() const {

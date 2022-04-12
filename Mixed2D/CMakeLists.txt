@@ -1,5 +1,17 @@
 
-set(sources TPZMixedElasticityND.cpp TPZCompelDiscScaled.h TPZCompelDiscScaled.cpp meshgen.h meshgen.cpp pzmixedelasmat.h pzmixedelasmat.cpp)
+set(sources 
+    TPZMixedElasticityND.cpp 
+    TPZCompelDiscScaled.h 
+    TPZCompelDiscScaled.cpp 
+    meshgen.h 
+    meshgen.cpp 
+    pzmixedelasmat.h 
+    pzmixedelasmat.cpp 
+    TPZMixedElasticityNDAiry.cpp 
+    AiryFunctionHoledPlate.cpp
+    AiryFunctionLoadedBeam.cpp
+    TPZCompElDiscStress.cpp
+    TPZCompElDiscStressBound.cpp)
 file(GLOB headers *.h)
 
 
@@ -7,6 +19,13 @@ set(Mymain main.cpp )
 add_executable(MixedElasticitySquare ${Mymain} ${sources})
 target_link_libraries(MixedElasticitySquare NeoPZ::pz)
 
+set(Main1Fracture main_1fracture.cpp )
+add_executable(1Fracture ${Main1Fracture} ${sources})
+target_link_libraries(1Fracture NeoPZ::pz)
+
+set(MainTest main_test.cpp )
+add_executable(Test ${MainTest} ${sources})
+target_link_libraries(Test NeoPZ::pz) 
 
 set(MymainOsc main_MixedElastOscillat.cpp )
 add_executable(MixedElasticityOscillatory ${MymainOsc} ${sources})
