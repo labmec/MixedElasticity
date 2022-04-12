@@ -27,7 +27,7 @@ set(mainMixedElasticitySeven main-seven.cpp ${sources} ${headers})
 add_executable(MixedElasticitySeven ${mainMixedElasticitySeven})
 target_link_libraries(MixedElasticitySeven NeoPZ::pz)
 
-set(MainSimple main_simple.cpp )
-add_executable(LinkTest ${MainSimple})
-target_link_libraries(LinkTest NeoPZ::pz )
+set(MHMSimple main_simple.cpp common_files.h common_files.cpp)
+add_executable(MHMTest ${MHMSimple})
+target_link_libraries(MHMTest NeoPZ::pz )
 

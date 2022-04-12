@@ -73,6 +73,7 @@
 
 #include "TPZGenGrid2D.h"
 #include "TPZExtendGridDimension.h"
+#include "TPZGeoMeshTools.h"
 
 #include "TPZAnalyticSolution.h"
 
@@ -564,6 +565,7 @@ TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
         for (int64_t el = 0; el < nel; el++) {
             TPZGeoEl *gel = gmesh->Element(el);
             if (!gel)continue;
+            if(gel->HasSubElement()) continue;
             int matid = gel->MaterialId();
             if (materialids.find(matid) == materialids.end()) {
                 continue;
@@ -633,6 +635,7 @@ TPZCompMesh *CMesh_RigidBody(TPZGeoMesh *gmesh, int lagrange) {
         for (int64_t el = 0; el < nel; el++) {
             TPZGeoEl *gel = gmesh->Element(el);
             if (!gel)continue;
+            if(gel->HasSubElement()) continue;
             int matid = gel->MaterialId();
             if (materialids.find(matid) == materialids.end()) {
                 continue;
@@ -1153,14 +1156,14 @@ STATE IntegrateBottom(TPZCompMesh *cmesh, int targetmatid) {
 int main(int argc, char *argv[]) {
 //    TPZMaterial::gBigNumber = 1.e16;
 
-#ifdef LOG4CXX
-    InitializePZLOG();
+#ifdef PZ_LOG
+    TPZLogger::InitializePZLOG();
 #endif
     EConfig conf = EThiago;
     int initial_p = 1;
     int final_p = 1;
     int initial_h = 0;
-    int final_h = 0;
+    int final_h = 2;
     bool plotting = true;
     EElementType elementType = ESquare;
     int numthreads = 0;
@@ -1207,7 +1210,7 @@ int main(int argc, char *argv[]) {
                 elas->gE = 206.8150271873455;
                 elas->gPoisson = 0.3040039545229857;
                 elas->fProblemType = TElasticity2DAnalytic::ERot;
-                rootname = ConfigRootname[conf] + "_Rot";
+                rootname = ConfigRootname[conf] + "2_Rot";
                 elas->fPlaneStress = 0;
                 gAnalytic = elas;
             }
@@ -1216,8 +1219,8 @@ int main(int argc, char *argv[]) {
                 TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
                 elas->fE = 1.;//206.8150271873455;
                 elas->fPoisson = 0.2;//0.3040039545229857;
-                elas->fProblemType = TElasticity3DAnalytic::ERot;
-                rootname = ConfigRootname[conf] + "_Rot3D";
+                elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
+                rootname = ConfigRootname[conf] + "3_LoadedBeam";
                 gAnalytic = elas;
             }
             else
@@ -1303,7 +1306,19 @@ int main(int argc, char *argv[]) {
             }
             else if(dim == 3)
             {
-                gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+                TPZManVector<REAL,3> minX = {0.,0.,0.};
+                TPZManVector<REAL,3> maxX = {1.,1.,1.};
+                TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
+                TPZManVector<int> nDivs = {1,1,1};
+                MMeshType meshType = MMeshType::ETetrahedral;
+                rootname += "_tetra_";
+                bool createBoundEls = true;
+                gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
+                        matids, nDivs, meshType, createBoundEls);
+                TPZCheckGeom check(gmesh);
+                check.UniformRefine(href);
+
+//                gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 
             }
 #ifdef PZDEBUG
@@ -1463,13 +1478,16 @@ int main(int argc, char *argv[]) {
                 TPZStack<std::string> scalnames, vecnames;
                 scalnames.Push("SigmaX");
                 scalnames.Push("SigmaY");
+                if(dim==3) scalnames.Push("SigmaZ");
                 scalnames.Push("TauXY");
+                if(dim==3) scalnames.Push("TauXZ");
+                if(dim==3) scalnames.Push("TauYZ");
                 vecnames.Push("displacement");
                 vecnames.Push("Stress");
                 vecnames.Push("Flux");
                 int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
-                an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
+                an.DefineGraphMesh(dim, scalnames, vecnames, plotfile);
                 an.PostProcess(2);
             }
 

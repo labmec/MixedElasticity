@@ -979,7 +979,10 @@ int TPZMixedElasticityND::VariableIndex(const std::string &name) const {
     if (!strcmp("PrincipalStress2", name.c_str())) return 4;
     if (!strcmp("SigmaX", name.c_str())) return 5;
     if (!strcmp("SigmaY", name.c_str())) return 6;
-    if (!strcmp("TauXY", name.c_str())) return 8; //Cedric
+    if (!strcmp("SigmaZ", name.c_str())) return 12;
+    if (!strcmp("TauXY", name.c_str())) return 8;
+    if (!strcmp("TauXZ", name.c_str())) return 30;
+    if (!strcmp("TauYZ", name.c_str())) return 31;
     if (!strcmp("Strain", name.c_str())) return 11; //Philippe
     if (!strcmp("SigmaZ", name.c_str())) return 12; //Philippe
     if (!strcmp("sig_x", name.c_str())) return 5;
@@ -1048,6 +1051,8 @@ int TPZMixedElasticityND::NSolutionVariables(int var) const {
             return 3;
         case 28:
         case 29:
+        case 30:
+        case 31:
             return 1;
         default:
             return TPZMaterial::NSolutionVariables(var);
@@ -1180,6 +1185,16 @@ void TPZMixedElasticityND::Solution(const TPZVec<TPZMaterialDataT<STATE>> &data,
     //  TauXY
     if (var == 8) {
         Solout[0] = 0.5 * (sigma(0, 1) + sigma(1, 0));
+        return;
+    }
+    //  TauXZ
+    if (var == 30) {
+        Solout[0] = 0.5 * (sigma(0, 2) + sigma(2, 0));
+        return;
+    }
+    //  TauYZ
+    if (var == 31) {
+        Solout[0] = 0.5 * (sigma(1, 2) + sigma(2, 1));
         return;
     }
     //Strain

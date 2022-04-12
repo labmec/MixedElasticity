@@ -1086,8 +1086,8 @@ STATE IntegrateBottom(TPZCompMesh *cmesh, int targetmatid) {
 int main(int argc, char *argv[]) {
 //    TPZMaterial::gBigNumber = 1.e16;
 
-#ifdef LOG4CXX
-    InitializePZLOG();
+#ifdef PZ_LOG
+    TPZLogger::InitializePZLOG();
 #endif
     EConfig conf = EThiago;
     int initial_p = 1;
@@ -1356,9 +1356,7 @@ int main(int argc, char *argv[]) {
                 scalnames.Push("SigmaX");
                 scalnames.Push("SigmaY");
                 scalnames.Push("TauXY");
-                vecnames.Push("Flux");
                 vecnames.Push("displacement");
-                vecnames.Push("Stress");
                 int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
                 an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
