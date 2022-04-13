@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # Enables NeoPZ library
-find_package(NeoPZ REQUIRED HINTS ${CMAKE_SOURCE_DIR}/../install_neopz/ ${CMAKE_SOURCE_DIR}/install_neopz/)
+find_package(NeoPZ REQUIRED HINTS ${CMAKE_SOURCE_DIR}/../install_neopz/ ${CMAKE_SOURCE_DIR}/install_neopz/ "../neopz_install")
 
 
 IF(APPLE)
