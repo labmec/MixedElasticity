@@ -319,7 +319,7 @@ TPZGeoMesh *CreateGMesh3D(int nelx, int nely, double hx, double hy, double x0, d
 //Creating geometric mesh, nodes and elements.
 //Including nodes and elements in the mesh object:
     TPZGeoMesh *gmesh2D = CreateGMesh(nelx, nely, hx, hy, x0, y0, meshType);
-    TPZExtendGridDimension extend(gmesh2D, hx);
+    TPZExtendGridDimension extend(gmesh2D, hx/nelx);
     TPZGeoMesh *gmesh3D = extend.ExtendedMesh(nelx,-5,-6);
 //    delete gmesh2D;
     return gmesh3D;
@@ -1112,7 +1112,7 @@ int main(int argc, char *argv[]) {
     int initial_p = 1;
     int final_p = 1;
     int initial_h = 1;
-    int final_h = 1;
+    int final_h = 2;
     bool plotting = false;
     EElementType elementType = ESquare;
     int numthreads = 0;
@@ -1168,8 +1168,8 @@ int main(int argc, char *argv[]) {
                 TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
                 elas->fE = 1.;//206.8150271873455;
                 elas->fPoisson = 0.;//0.3040039545229857;
-                elas->fProblemType = TElasticity3DAnalytic::EShear;
-                rootname << ConfigRootname[conf] << "_Shear";
+                elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
+                rootname << ConfigRootname[conf] << "_LoadedBeam";
                 gAnalytic = elas;
             }
             else
@@ -1279,10 +1279,12 @@ int main(int argc, char *argv[]) {
             
             
 #ifdef PZDEBUG
+            {
             std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
             std::ofstream filegvtk("MalhaGeo.vtk"); //Prints the geometric mesh in vtk format
             gmesh->Print(fileg);
             TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+            }
 #endif
 //            TPZCompMesh *cmesh_P_HDiv = CMesh_P(gmesh, rotationPOrder, hx / nelx); //Creates the computational mesh for the rotation field
 
@@ -1325,7 +1327,7 @@ int main(int argc, char *argv[]) {
 
             TPZMaterial *mat = cmesh_m_HDiv->FindMaterial(matID);
             TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
-            TPZManVector<REAL, 6> Errors(materr->NEvalErrors());
+            TPZManVector<REAL, 10> Errors(materr->NEvalErrors());
             TElasticityExample1 example;
             an.SetExact(example.Exact());
             //            an.PostProcessError(Errors,std::cout);
@@ -1440,6 +1442,7 @@ int main(int argc, char *argv[]) {
             cmesh->ExpandElementSolution(Errors.size());
 //            cmesh->ElementSolution().Redim(cmesh->NElements(), Errors.size());
             std::cout << "Computing errors." << std::endl;
+            Errors.Fill(0.);
             an.PostProcessError(Errors, store_errors, ErroOut);
             std::cout << "Computed errors." << std::endl;
             ErroOut << "nelx ribporder internalporder n_condensed - n_total - error_sigma - error_energy - error_div_sigma - error_u - error_r - error_as\n";

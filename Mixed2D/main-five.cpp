@@ -916,35 +916,35 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     auto * BCond0 = material->CreateBC(material, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
     //BCond0->SetForcingFunction(p_exact1, bc_inte_order);
     //BCond0->SetForcingFunction(solucao_exact,bc_inte_order);
-    BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
     auto * BCond1 = material->CreateBC(material, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-    BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
     //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
     auto * BCond2 = material->CreateBC(material, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
-    BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
     //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
     auto * BCond3 = material->CreateBC(material, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
     auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
     auto * BCond6 = material->CreateBC(material, -6, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond6->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond6->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     cmesh->InsertMaterialObject(BCond6); //Insere material na malha
 
     auto * BCond4 = material->CreateBC(material, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond4->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond4->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
     cmesh->InsertMaterialObject(BCond4); //Insere material na malha
 
     //Ponto
@@ -1194,7 +1194,7 @@ int main(int argc, char *argv[]) {
     mkl_set_num_threads(numthreads);
 #endif
 
-    std::string rootname;
+    std::stringstream rootname_common;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
     double x0 = -1;
     double y0 = -1;
@@ -1210,7 +1210,7 @@ int main(int argc, char *argv[]) {
                 elas->gE = 206.8150271873455;
                 elas->gPoisson = 0.3040039545229857;
                 elas->fProblemType = TElasticity2DAnalytic::ERot;
-                rootname = ConfigRootname[conf] + "2_Rot";
+                rootname_common << ConfigRootname[conf] << "2_Rot";
                 elas->fPlaneStress = 0;
                 gAnalytic = elas;
             }
@@ -1218,9 +1218,9 @@ int main(int argc, char *argv[]) {
             {
                 TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
                 elas->fE = 1.;//206.8150271873455;
-                elas->fPoisson = 0.2;//0.3040039545229857;
+                elas->fPoisson = 0.0;//0.3040039545229857;
                 elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
-                rootname = ConfigRootname[conf] + "3_LoadedBeam";
+                rootname_common << ConfigRootname[conf] << "3_LoadedBeam";
                 gAnalytic = elas;
             }
             else
@@ -1239,7 +1239,7 @@ int main(int argc, char *argv[]) {
             elas->gE = 100;
             elas->gPoisson = 0.;
             elas->fProblemType = TElasticity2DAnalytic::ERot;
-            rootname = ConfigRootname[conf] + "_RotAxi";
+            rootname_common << ConfigRootname[conf] << "_RotAxi";
             elas->fPlaneStress = 0;
             // should be axisymetric
             DebugStop();
@@ -1258,7 +1258,7 @@ int main(int argc, char *argv[]) {
                 elas->gE = 1.;
                 elas->gPoisson = 0.2;
                 elas->fProblemType = TElasticity2DAnalytic::EStretchx;
-                rootname = ConfigRootname[conf] + "_Stretchx";
+                rootname_common << ConfigRootname[conf] << "_Stretchx";
                 elas->fPlaneStress = 1;
                 gAnalytic = elas;
             }
@@ -1285,8 +1285,10 @@ int main(int argc, char *argv[]) {
 
     for (unsigned int pref = initial_p - 1; pref < final_p; ++pref) {
         for (unsigned int href = initial_h; href <= final_h; ++href) {
+            std::stringstream rootname;
+            rootname << rootname_common.str();
             unsigned int h_level = 1 << href;
-            unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
+            int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
             unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
             unsigned int stressPOrder = pref + 1; //Polynomial order of the approximation
@@ -1309,23 +1311,27 @@ int main(int argc, char *argv[]) {
                 TPZManVector<REAL,3> minX = {0.,0.,0.};
                 TPZManVector<REAL,3> maxX = {1.,1.,1.};
                 TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
-                TPZManVector<int> nDivs = {1,1,1};
+                TPZManVector<int> nDivs = {nelx,nelx,nelx};
                 MMeshType meshType = MMeshType::ETetrahedral;
-                rootname += "_tetra_";
+                rootname << "_tetra_";
                 bool createBoundEls = true;
                 gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
                         matids, nDivs, meshType, createBoundEls);
-                TPZCheckGeom check(gmesh);
-                check.UniformRefine(href);
+//                TPZCheckGeom check(gmesh);
+//                check.UniformRefine(href);
 
 //                gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 
             }
 #ifdef PZDEBUG
-            std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
-            std::ofstream filegvtk("MalhaGeo.vtk"); //Prints the geometric mesh in vtk format
-            gmesh->Print(fileg);
-            TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+            {
+                std::stringstream out;
+                out << rootname.str() << "." << href+1 << ".vtk";
+                std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
+                std::ofstream filegvtk(out.str()); //Prints the geometric mesh in vtk format
+                gmesh->Print(fileg);
+                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+            }
 #endif
             //Creating computational mesh:
             //Creates the computational mesh for the stress field (HDiv)
@@ -1411,13 +1417,16 @@ int main(int argc, char *argv[]) {
                 meshvector = meshvector_Hybrid;
                 // We need to delete the original meshes
             }
+            TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
+
 #ifdef PZDEBUG
             {
                 std::ofstream filecm("MalhaC_m.txt");
-                cmesh_m_HDiv->Print(filecm); //Prints the multi-physics computational mesh in txt format
+                cmesh->Print(filecm); //Prints the multi-physics computational mesh in txt format
             }
 #endif
-            TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
+
+
 #ifdef USING_MKL
             TPZSymetricSpStructMatrix matskl(cmesh);
 #else
@@ -1435,8 +1444,8 @@ int main(int argc, char *argv[]) {
 
             TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE> *>(cmesh_m_HDiv->FindMaterial(matID));
             TPZManVector<REAL, 6> Errors(materr->NEvalErrors());
-            TElasticityExample1 example;
-            an.SetExact(example.Exact());
+//            TElasticityExample1 example;
+//            an.SetExact(example.Exact());
             //            an.PostProcessError(Errors,std::cout);
 
 #ifdef PZDEBUG
@@ -1472,7 +1481,7 @@ int main(int argc, char *argv[]) {
                 std::string plotfile;
                 {
                     std::stringstream sout;
-                    sout << rootname << ".vtk";
+                    sout << rootname.str() << ".vtk";
                     plotfile = sout.str();
                 }
                 TPZStack<std::string> scalnames, vecnames;
@@ -1514,7 +1523,7 @@ int main(int argc, char *argv[]) {
             //    std::cout << "Computing Error " << std::endl;
 
             std::stringstream sout;
-            sout << rootname;
+            sout << rootname.str();
             switch (elementType) {
                 case ETriangular:
                     sout << "_tria";
@@ -1528,7 +1537,7 @@ int main(int argc, char *argv[]) {
             }
             sout << "_" << stressPOrder << "_Error.nb";
             ofstream ErroOut(sout.str(), std::ios::app);
-            ErroOut << "(* Type of simulation " << rootname << " *)\n";
+            ErroOut << "(* Type of simulation " << rootname.str() << " *)\n";
             ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
             ErroOut << "(* Type of Element ";
             switch (elementType) {
@@ -1547,6 +1556,7 @@ int main(int argc, char *argv[]) {
             ErroOut << "(* Number of equations before condensation " << cmesh->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(gAnalytic->ExactSolution());
+            numthreads = 0;
             an.SetThreadsForError(numthreads);
             bool store_errors = true;
             cmesh->ElementSolution().Redim(cmesh->NElements(), Errors.size());
