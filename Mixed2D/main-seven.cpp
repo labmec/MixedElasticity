@@ -69,6 +69,7 @@
 #include "pzmultiphysicselement.h"
 #include "TPZMultiphysicsInterfaceEl.h"
 #include "TPZHybridizeHDiv.h"
+#include "TPZGeoMeshTools.h"
 
 #include "TPZGenGrid2D.h"
 #include "TPZExtendGridDimension.h"
@@ -92,7 +93,7 @@ TPZAnalyticSolution *gAnalytic = 0;
 
 // local enum for mesh types @ToDo these names might lead to confusion. We should consider changing.
 enum EElementType {
-    ETriangular = 0, ESquare = 1, ETrapezoidal = 2
+    ETriangular = 0, ESquare = 1, ETrapezoidal = 2, ETetraheda = 3
 };
 
 // @proposition - Pedro
@@ -170,6 +171,8 @@ void CreateCondensedElements(TPZCompMesh *cmesh);
 void Error(TPZCompMesh *hdivmesh, std::ostream &out, int p, int ndiv);
 
 void InsertMaterialObjects(TPZCompMesh &cmeshref);
+
+TPZGeoMesh* Create3DTetMesh(const int href);
 
 //Variáveis globais do problema:
 
@@ -1114,7 +1117,8 @@ int main(int argc, char *argv[]) {
     int initial_h = 1;
     int final_h = 2;
     bool plotting = false;
-    EElementType elementType = ESquare;
+//    EElementType elementType = ESquare;
+	EElementType elementType = ETetraheda;
     int numthreads = 0;
 
     switch (argc) {
@@ -1235,8 +1239,10 @@ int main(int argc, char *argv[]) {
             }
             else if(dim == 3)
             {
-                gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
-
+				if (elementType == ESquare)
+					gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+				else if (elementType == ETetraheda)
+					gmesh = Create3DTetMesh(href);
             }
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
@@ -1489,4 +1495,17 @@ int main(int argc, char *argv[]) {
     std::cout << "FINISHED!" << std::endl;
 
     return 0;
+}
+
+TPZGeoMesh* Create3DTetMesh(const int href) {
+	TPZManVector<REAL,3> minX = {0.,0.,0.};
+	TPZManVector<REAL,3> maxX = {1.,1.,1.};
+	TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
+	//	int signedhref = (int) href;
+	TPZManVector<int> nDivs = {href,href,href};
+	MMeshType tetmeshType = MMeshType::ETetrahedral;
+	bool createBoundEls = true;
+	return TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
+												matids, nDivs,
+												tetmeshType, createBoundEls);
 }
