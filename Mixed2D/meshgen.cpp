@@ -16,7 +16,7 @@
 
 #include "TPZSSpStructMatrix.h"
 
-#ifndef USING_MKL
+#ifndef PZ_USING_MKL
 #include "pzskylstrmatrix.h"
 #endif
 

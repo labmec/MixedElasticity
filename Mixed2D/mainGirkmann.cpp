@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
     bool optimizeBandwidth = true; //Impede a renumeração das equacoes do problema (para obter o mesmo resultado do Oden)
     TPZLinearAnalysis an(cmesh_m, optimizeBandwidth); //Cria objeto de análise que gerenciará a analise do problema
 
-#ifdef USING_MKL2
+#ifdef PZ_USING_MKL2
     TPZSymetricSpStructMatrix matskl(cmesh_m);
 #else
     TPZSkylineStructMatrix<STATE> matskl(cmesh_m); //caso nao simetrico ***

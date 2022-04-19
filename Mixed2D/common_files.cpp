@@ -19,7 +19,7 @@ void SolveProblem(TPZMultiphysicsCompMesh &cmesh, std::stringstream &rootname)
     bool optimizeBandwidth = true;
     bool plotting = true;
     TPZLinearAnalysis an(&cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-#ifdef USING_MKL
+#ifdef PZ_USING_MKL
     TPZSymetricSpStructMatrix matskl(cmesh);
 #else
     TPZSkylineStructMatrix<STATE> matskl(&cmesh); // asymmetric case ***

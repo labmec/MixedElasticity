@@ -1115,7 +1115,7 @@ int main(int argc, char *argv[]) {
     int initial_p = 1;
     int final_p = 1;
     int initial_h = 1;
-    int final_h = 2;
+    int final_h = 3;
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;
@@ -1142,10 +1142,10 @@ int main(int argc, char *argv[]) {
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
 
-#ifdef USING_MKL
-    mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
-    mkl_set_num_threads(numthreads);
-#endif
+//#ifdef PZ_USING_MKL
+//    mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
+//    mkl_set_num_threads(numthreads);
+//#endif
 
     std::stringstream rootname;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
@@ -1316,8 +1316,8 @@ int main(int argc, char *argv[]) {
             
             TPZCompMesh *cmesh = cmesh_m_HDiv.operator->();
             TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-#ifdef USING_MKL
-            TPZSymetricSpStructMatrix matskl(cmesh);
+#ifdef PZ_USING_MKL
+            TPZSSpStructMatrix<STATE> matskl(cmesh);
 #else
             TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
 #endif

@@ -1119,7 +1119,7 @@ int main(int argc, char *argv[]) {
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
 
-#ifdef USING_MKL
+#ifdef PZ_USING_MKL
     mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
     mkl_set_num_threads(numthreads);
 #endif
@@ -1295,7 +1295,7 @@ int main(int argc, char *argv[]) {
 #endif
             }
             TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-#ifdef USING_MKL
+#ifdef PZ_USING_MKL
             TPZSymetricSpStructMatrix matskl(cmesh);
 #else
             TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
