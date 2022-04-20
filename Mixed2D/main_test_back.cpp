@@ -175,9 +175,9 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     cmesh->SetDimModel(dim); //Dimesion of the model
 
     //Definition of the approximation space:
-    cmesh->ApproxSpace().SetHDivFamily(HDivFamily::EHDivKernel);
+    // cmesh->ApproxSpace().SetHDivFamily(HDivFamily::EHDivKernel);
     // cmesh->ApproxSpace().SetHDivFamily(HDivFamily::EHDivConstant);
-    // cmesh->ApproxSpace().SetHDivFamily(HDivFamily::EHDivStandard);
+    cmesh->ApproxSpace().SetHDivFamily(HDivFamily::EHDivStandard);
     cmesh->SetAllCreateFunctionsHDiv(); //Creating H(div) functions:
 
     //Criando material cujo nSTATE = 2:
@@ -211,12 +211,12 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
-    // auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    // BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
-    // cmesh->InsertMaterialObject(BCond5); //Insere material na malha
+    auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
+    cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
-    auto * BCond6 = material->CreateBC(material, -6, pointtype, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    cmesh->InsertMaterialObject(BCond6); //Insere material na malha
+    // auto * BCond6 = material->CreateBC(material, -6, pointtype, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    // cmesh->InsertMaterialObject(BCond6); //Insere material na malha
 
     val2s[0] = 0;
     val2s[1] = 0;
@@ -497,16 +497,16 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
     
-    // //Hole
-    // val2[1] = 0.;
-    // auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    // BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
-    // cmesh->InsertMaterialObject(BCond5); //Insere material na malha
+    //Hole
+    val2[1] = 0.;
+    auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
+    cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
-    //Point
-    TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
-    auto * BCPoint = material->CreateBC(material, -6, pointtype, val3, val2); //Cria material que implementa um ponto para a pressão
-    cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
+    // //Point
+    // TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
+    // auto * BCPoint = material->CreateBC(material, -6, pointtype, val3, val2); //Cria material que implementa um ponto para a pressão
+    // cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
 
     auto * BCond7 = material->CreateBC(material, matLagrange, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
     BCond7->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
@@ -596,7 +596,7 @@ int main(int argc, char *argv[]) {
 
     int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
     int rotationPOrder = displacementPOrder;
-    TPZGeoMesh *gmesh = ReadMeshFromGmsh("../../mesh/plate.msh");
+    TPZGeoMesh *gmesh = ReadMeshFromGmsh("../../mesh/1element.msh");
 
     // std::set<int> matIdCorner= {-5};
     // TPZRefPatternTools::RefineDirectional(gmesh,matIdCorner);
@@ -747,7 +747,7 @@ int main(int argc, char *argv[]) {
         int count = 0;
         an.SetStep(count);
         an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
-        an.PostProcess(3);
+        an.PostProcess(0);
     }
 
 #ifdef PZDEBUG
@@ -854,6 +854,7 @@ TPZGeoMesh* ReadMeshFromGmsh(std::string file_name)
         stringtoint[1]["Right"] = -2;
         stringtoint[1]["Upper"] = -3;
         stringtoint[1]["Left"] = -4;
+        stringtoint[1]["Hole"] = -5;
         stringtoint[0]["Corner"] = -6;
 
         reader.SetDimNamePhysical(stringtoint);
@@ -912,9 +913,9 @@ TPZCompMesh *CMesh_Airy(TPZGeoMesh *gmesh, int pOrder) {
     BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
-    // auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    // BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
-    // cmesh->InsertMaterialObject(BCond5); //Insere material na malha
+    auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
+    cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
     // auto * BCond6 = material->CreateBC(material, -6, pointtype, val1, val2s); //Cria material que implementa a condicao de contorno direita
     // cmesh->InsertMaterialObject(BCond6); //Insere material na malha

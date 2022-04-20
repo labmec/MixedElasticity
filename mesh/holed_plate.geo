@@ -1,6 +1,6 @@
 //+
 //SetFactory("OpenCASCADE");
-a=0.2;
+a=0.3;
 Point(1) = {-1,-0.5,0,a};
 Point(2) = { 1,-0.5,0,a};
 Point(3) = { 1, 0.5,0,a};

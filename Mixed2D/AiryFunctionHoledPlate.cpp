@@ -6,6 +6,7 @@ AiryFunctionHoledPlate::AiryFunctionHoledPlate(TPZFMatrix<REAL> center, TPZVec<R
     gCenter.Resize(nHoles,3);
     gCenter.Zero();
     gRadius.resize(nHoles);
+    nShape = nHoles;
 
     for (int i = 0; i < nHoles; i++)
     {

@@ -72,13 +72,13 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
     TPZFMatrix<REAL> &phiS = datavec[0].phi;
     TPZFMatrix<REAL> &dphiS = datavec[0].dphix;
     // Airy
-    TPZFMatrix<REAL> &phiAiry = datavec[1].phi;
-    TPZFMatrix<REAL> &dphiAiry = datavec[1].dphix;
+    TPZFMatrix<REAL> &phiAiry = datavec[3].phi;
+    TPZFMatrix<REAL> &dphiAiry = datavec[3].dphix;
     // U
-    TPZFMatrix<REAL> &phiU = datavec[2].phi;
-    TPZFMatrix<REAL> &dphiU = datavec[2].dphix;
+    TPZFMatrix<REAL> &phiU = datavec[1].phi;
+    TPZFMatrix<REAL> &dphiU = datavec[1].dphix;
     // P
-    TPZFMatrix<REAL> &phiP = datavec[3].phi;
+    TPZFMatrix<REAL> &phiP = datavec[2].phi;
 
     TElasticityAtPoint elast(fE_const,fnu_const);
     if(this->fElasticity)
@@ -95,14 +95,14 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
 
     int nshapeS, nshapeA, nshapeU, nshapeP;
     nshapeS = datavec[0].fVecShapeIndex.NElements();
-    nshapeA = datavec[1].phi.Rows();
-    nshapeU = datavec[2].phi.Rows();
-    nshapeP = datavec[3].phi.Rows();
+    nshapeU = datavec[1].phi.Rows();
+    nshapeP = datavec[2].phi.Rows();
+    nshapeA = datavec[3].phi.Rows();
     const int firstequation_S = 0;
-    const int firstequation_A = firstequation_S + nshapeS*fDimension;
-    const int firstequation_U = firstequation_A + nshapeA*fDimension;
+    const int firstequation_U = firstequation_S + nshapeS*fDimension;
     const int firstequation_P = firstequation_U + nshapeU*fDimension;
-    
+    const int firstequation_A = firstequation_P + nshapeP;
+
     // number of asymetric tensors for each shape function
     int nrotations = 1;
     if(fDimension == 3) nrotations = 3;
@@ -191,6 +191,16 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
         divSi1y[1] = divSi;
         if(fDimension == 3) divSi1z[2] = divSi;
 
+        //Multiply by Lamé parameters
+        TPZManVector<STATE, 9> AphiSi1x(voigtdim, 0.0), AphiSi1y(voigtdim, 0.0), AphiSi1z(voigtdim, 0.0);
+
+        ComputeDeformationVector(phiSi1x, AphiSi1x,elast);
+        ComputeDeformationVector(phiSi1y, AphiSi1y,elast);
+        if(fDimension == 3)
+        {
+            ComputeDeformationVector(phiSi1z, AphiSi1z,elast);
+        }
+
         // matrix K11 - (Matrix A * stress tensor) x test-function stress tensor
         for (int j = 0; j < nshapeS; j++) {
             int jphi = datavec[0].fVecShapeIndex[j].second;
@@ -218,16 +228,6 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
             if(fDimension == 3)
             {
                 ToVoigt(phjTensz, phiSj1z);
-            }
-
-            //Multiply by Lamé parameters
-            TPZManVector<STATE, 9> AphiSi1x(voigtdim, 0.0), AphiSi1y(voigtdim, 0.0), AphiSi1z(voigtdim, 0.0);
-
-            ComputeDeformationVector(phiSi1x, AphiSi1x,elast);
-            ComputeDeformationVector(phiSi1y, AphiSi1y,elast);
-            if(fDimension == 3)
-            {
-                ComputeDeformationVector(phiSi1z, AphiSi1z,elast);
             }
 
             STATE valxx = InnerVec(AphiSi1x, phiSj1x);
@@ -263,38 +263,31 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
         }
 
 
-        //Here we have to put the airy functions - Jeferson
+        
+
+        // //Here we have to put the airy functions - Jeferson
         for (int j = 0; j < nshapeA; j++) {
-            phiAj1x[Exx] = phiAiry(2*j  ,0);
-            phiAj1x[Exy] = phiAiry(2*j  ,1);    
-            phiAj1x[Eyy] = phiAiry(2*j  ,2);
-            phiAj1x[Eyy] = phiAiry(2*j  ,3);
+            TPZFNMatrix<9, STATE> phjATens(fDimension, fDimension, 0.);
 
-            phiAj1y[Exx] = phiAiry(2*j  ,0);
-            phiAj1y[Exy] = phiAiry(2*j  ,1);    
-            phiAj1y[Eyy] = phiAiry(2*j  ,2);
-            phiAj1y[Eyy] = phiAiry(2*j  ,3);
+            phjATens(0,0) = phiAiry(j,0);
+            phjATens(0,1) = phiAiry(j,2);
+            phjATens(1,0) = phiAiry(j,2);
+            phjATens(1,1) = phiAiry(j,1);
 
-            //Multiply by Lamé parameters
-            TPZManVector<STATE, 9> AphiSi1x(voigtdim, 0.0), AphiSi1y(voigtdim, 0.0), AphiSi1z(voigtdim, 0.0);
+            ToVoigt(phjATens, phiAj1x);
 
-            ComputeDeformationVector(phiSi1x, AphiSi1x,elast);
-            ComputeDeformationVector(phiSi1y, AphiSi1y,elast);
+            // std::cout << "AphiSi1x = " << AphiSi1x << std::endl;
+            // std::cout << "AphiSi1y = " << AphiSi1y << std::endl;
+            // std::cout << "phiAj1x = " << phiAj1x << std::endl;
 
             STATE valxx = InnerVec(AphiSi1x, phiAj1x);
-            STATE valxy = InnerVec(AphiSi1x, phiAj1y);
-            STATE valyx = InnerVec(AphiSi1y, phiAj1x);
-            STATE valyy = InnerVec(AphiSi1y, phiAj1y);
+            STATE valyy = InnerVec(AphiSi1y, phiAj1x);
+            
+            ek(fDimension * i    , firstequation_A + j) += weight * valxx;
+            ek(fDimension * i + 1, firstequation_A + j) += weight * valyy;
 
-            ek(firstequation_A + fDimension * j    , fDimension * i    ) += weight * valxx;
-            ek(firstequation_A + fDimension * j    , fDimension * i + 1) += weight * valxy;
-            ek(firstequation_A + fDimension * j + 1, fDimension * i    ) += weight * valyx;
-            ek(firstequation_A + fDimension * j + 1, fDimension * i + 1) += weight * valyy;
-
-            ek(fDimension * i    , firstequation_A + fDimension * j    ) += weight * valxx;
-            ek(fDimension * i    , firstequation_A + fDimension * j + 1) += weight * valxy;
-            ek(fDimension * i + 1, firstequation_A + fDimension * j    ) += weight * valyx;
-            ek(fDimension * i + 1, firstequation_A + fDimension * j + 1) += weight * valyy;
+            ek(firstequation_A + j, fDimension * i    ) += weight * valxx;
+            ek(firstequation_A + j, fDimension * i + 1) += weight * valyy;
         }   
 
         // matrix K21 and K12 - divergent of test-function stress tensor * displacement vector
@@ -371,44 +364,38 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
         }
     }
 
-    //Diagonal contribution of Airy functions
+    //Diagonal contribution of Airy functions - Jeferson
     for (int i = 0; i < nshapeA; i++) {
-        phiAi1x[Exx] = phiAiry(2*i  ,0);
-        phiAi1x[Exy] = phiAiry(2*i  ,1);    
-        phiAi1x[Eyy] = phiAiry(2*i  ,2);
-        phiAi1x[Eyy] = phiAiry(2*i  ,3);
-        
-        phiAi1y[Exx] = phiAiry(2*i  ,0);
-        phiAi1y[Exy] = phiAiry(2*i  ,1);    
-        phiAi1y[Eyy] = phiAiry(2*i  ,2);
-        phiAi1y[Eyy] = phiAiry(2*i  ,3);
+        TPZFNMatrix<9, STATE> phiATens(fDimension, fDimension, 0.);
 
+        phiATens(0,0) = phiAiry(i,0);
+        phiATens(0,1) = phiAiry(i,2);
+        phiATens(1,0) = phiAiry(i,2);
+        phiATens(1,1) = phiAiry(i,1);
+
+        // std::cout << "phiAiry " << phiAiry << std::endl;
+        // std::cout << "phiATensxi " << phiATens << std::endl;
+
+        ToVoigt(phiATens, phiAi1x);
+       
         for (int j = 0; j < nshapeA; j++) {
-            phiAj1x[Exx] = phiAiry(2*j  ,0);
-            phiAj1x[Exy] = phiAiry(2*j  ,1);    
-            phiAj1x[Eyy] = phiAiry(2*j  ,2);
-            phiAj1x[Eyy] = phiAiry(2*j  ,3);
+            TPZFNMatrix<9, STATE> phjATens(fDimension, fDimension, 0.);
 
-            phiAj1y[Exx] = phiAiry(2*j  ,0);
-            phiAj1y[Exy] = phiAiry(2*j  ,1);    
-            phiAj1y[Eyy] = phiAiry(2*j  ,2);
-            phiAj1y[Eyy] = phiAiry(2*j  ,3);
+            phjATens(0,0) = phiAiry(j,0);
+            phjATens(0,1) = phiAiry(j,2);
+            phjATens(1,0) = phiAiry(j,2);
+            phjATens(1,1) = phiAiry(j,1);
+
+            ToVoigt(phjATens, phiAj1x);
 
             //Multiply by Lamé parameters
-            TPZManVector<STATE, 9> AphiAi1x(voigtdim, 0.0), AphiAi1y(voigtdim, 0.0), AphiAi1z(voigtdim, 0.0);
+            TPZManVector<STATE, 9> AphiAi1(voigtdim, 0.0);
 
-            ComputeDeformationVector(phiAi1x, AphiAi1x,elast);
-            ComputeDeformationVector(phiAi1y, AphiAi1y,elast);
+            ComputeDeformationVector(phiAi1x, AphiAi1, elast);        
 
-            STATE valxx = InnerVec(AphiAi1x, phiAj1x);
-            STATE valxy = InnerVec(AphiAi1x, phiAj1y);
-            STATE valyx = InnerVec(AphiAi1y, phiAj1x);
-            STATE valyy = InnerVec(AphiAi1y, phiAj1y);
+            STATE valA = InnerVec(AphiAi1, phiAj1x);
 
-            ek(firstequation_A + fDimension * j    , firstequation_A + fDimension * i    ) += weight * valxx;
-            ek(firstequation_A + fDimension * j    , firstequation_A + fDimension * i + 1) += weight * valxy;
-            ek(firstequation_A + fDimension * j + 1, firstequation_A + fDimension * i    ) += weight * valyx;
-            ek(firstequation_A + fDimension * j + 1, firstequation_A + fDimension * i + 1) += weight * valyy;
+            ek(firstequation_A + i, firstequation_A + j) += weight * valA;
         }   
     }
 
@@ -446,10 +433,228 @@ void TPZMixedElasticityNDAiry::Contribute_4spaces(const TPZVec<TPZMaterialDataT<
 }
 
 
+void TPZMixedElasticityNDAiry::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef, TPZBndCondT<STATE> &bc) {
+    if (datavec[0].phi.Rows() != 0 && datavec[0].fShapeType != TPZMaterialData::EScalarShape) {
+        DebugStop();
+    }
+    int ndisp = datavec[1].phi.Rows();
+
+    const TPZVec<REAL> &v_2 = bc.Val2();
+    TPZFNMatrix<9, STATE> v_1 = bc.Val1();
+    TPZFNMatrix<9, STATE> tens(fDimension, fDimension);
+
+    // Setting forcing function
+    if (bc.HasForcingFunctionBC()) {
+        TPZManVector<STATE, 3> res(fDimension);
+        // TPZFNMatrix<9, STATE> tens(fDimension, fDimension);
+        bc.ForcingFunctionBC()(datavec[0].x, res, tens);
+        v_2[0] = res[0];
+        v_2[1] = res[1];
+        if(fDimension == 3) v_2[2] = res[2];
+        // std::cout << "x = " << datavec[0].x << std::endl;
+        // std::cout << "V_2 = " << v_2 << std::endl;
+        // std::cout << "tens = " << tens << std::endl;
+    }
+
+    TElasticityAtPoint elast(fE_const,fnu_const);
+    if(this->fElasticity)
+    {
+		TPZManVector<STATE, 3> result(2);
+		TPZFNMatrix<4,STATE> Dres(0,0);
+        this->fElasticity->Execute(datavec[0].x, result, Dres);
+        REAL E = result[0];
+        REAL nu = result[1];
+        TElasticityAtPoint modify(E,nu);
+        elast = modify;
+    }
+
+    // Setting the phis
+    // E
+    TPZFMatrix<REAL> &phiS = datavec[0].phi;
+    TPZFMatrix<REAL> &phiA = datavec[3].phi;
+
+
+    int nshapeS, nshapeA;
+    nshapeS = datavec[0].phi.Rows();
+    nshapeA = datavec[3].phi.Rows();
+
+
+    //    TPZMaterialData::MShapeFunctionType shapetype = data.fShapeType;
+    //    if(shapetype==data.EVecShape){
+    //        ContributeVecShapeBC(data,weight,ek, ef,bc);
+    //        return;
+    //    }
+
+    REAL R = datavec[0].x[0];
+    if (R < 1.e-6) R = 1.e-6;
+    
+    int nstate = 2;
+    if(fDimension == 3) nstate = 3;
+
+    // TPZFMatrix<REAL> phiAx(nshapeA,2,0.), phiAy(nshapeA,2,0.);
+    // for (int iq = 0; iq < nshapeA; iq++){
+    //     phiAx(iq,0) = phiA(iq,0);
+    //     phiAx(iq,1) = phiA(iq,2);
+
+    //     phiAy(iq,0) = phiA(iq,1);
+    //     phiAy(iq,1) = phiA(iq,2);
+    // }
+
+    switch (bc.Type()) {
+        case 0: // Dirichlet condition
+        {
+            for (int iq = 0; iq < nshapeS; iq++) {
+                for (int idf = 0; idf < nstate; idf++) {
+                    ef(nstate * iq + idf, 0) += v_2[idf] * phiS(iq, 0) * weight; // forced v2 displacement
+                }
+            }
+
+            for (int iq = 0; iq < nshapeA; iq++) {//NState of Airy functions is 1
+                for (int d = 0; d<fDimension; d++){
+                    ef(nshapeS*nstate + iq, 0) += v_2[d] * phiA(iq, d) * weight; // forced v2 displacement
+                }
+            }
+        }
+            break;
+
+        case 1: // Neumann condition
+        {
+            for (int iq = 0; iq < nshapeS; iq++) {
+                for (int jq = 0; jq < nshapeS; jq++) {
+                    if (fAxisSymmetric) {
+                        ek(2 * iq, 2 * jq) += TPZMaterial::fBigNumber * phiS(iq, 0) * phiS(jq, 0) * weight / R;
+                        ek(2 * iq + 1, 2 * jq + 1) += TPZMaterial::fBigNumber * phiS(iq, 0) * phiS(jq, 0) * weight / R;
+                    } else {
+                        for(int idf = 0; idf < nstate; idf++)
+                        {
+                            ek(nstate * iq + idf, nstate * jq + idf) += TPZMaterial::fBigNumber * phiS(iq, 0) * phiS(jq, 0) * weight;
+                        }
+                    }
+                }
+                for(int idf = 0; idf < nstate; idf++)
+                {
+                    ef(nstate * iq + idf, 0) += TPZMaterial::fBigNumber * v_2[idf] * phiS(iq, 0) * weight; // normal stress in x direction
+                }
+            }
+
+            std::cout << "EK before " << ek << std::endl;
+ 
+            for (int iq = 0; iq < nshapeA; iq++) {
+                for (int jq = 0; jq < nshapeS; jq++) {
+                    for(int idf = 0; idf < nstate; idf++)
+                    {
+                        ek(nshapeS*nstate + iq, nstate * jq + idf) += TPZMaterial::fBigNumber * phiA(iq, idf) * phiS(jq, 0) * weight;
+                        ek(nstate * jq + idf, nshapeS*nstate + iq) += TPZMaterial::fBigNumber * phiA(iq, idf) * phiS(jq, 0) * weight;
+                    }
+                }
+
+                for (int d = 0; d<fDimension; d++){
+                    ef(nshapeS*nstate + iq, 0) +=  v_2[d] * phiA(iq, d) * weight; // normal stress in x direction
+                }
+            }
+            std::cout << "EK after " << ek << std::endl;
+            std::cout << "EF after " << ef << std::endl;
+
+
+
+        }
+            break;
+
+        case 2: // Mixed condition
+        {
+            for (int iq = 0; iq < nshapeS; iq++) {
+                for (int jq = 0; jq < nshapeS; jq++) {
+                    if (fAxisSymmetric) {
+                        ek(2 * iq, 2 * jq) += v_1(0, 0) * phiS(iq, 0) * phiS(jq, 0) * weight / R;
+                        ek(2 * iq + 1, 2 * jq + 1) += v_1(1, 1) * phiS(iq, 0) * phiS(jq, 0) * weight / R;
+                        ek(2 * iq + 1, 2 * jq) += v_1(1, 0) * phiS(iq, 0) * phiS(jq, 0) * weight / R;
+                        ek(2 * iq, 2 * jq + 1) += v_1(0, 1) * phiS(iq, 0) * phiS(jq, 0) * weight / R;
+                    } else {
+                        for (int idf = 0; idf < nstate; idf++)
+                        {
+                            for (int jdf = 0; jdf < nstate; jdf++)
+                            {
+                                ek(nstate * iq + idf, nstate * jq + jdf) += v_1(idf, jdf) * phiS(iq, 0) * phiS(jq, 0) * weight;
+                            }
+                        }
+                    }
+                }
+                for (int idf = 0; idf < nstate; idf++) {
+                    ef(nstate * iq + idf, 0) += v_2[idf] * phiS(iq, 0) * weight; // normal stress
+                }
+            }
+        }
+            break;
+        case 5:
+            /// aplicando multiplicador de lagrange para impor deslocamento
+            if (ndisp != 1) {
+                DebugStop();
+            }
+            for (int idf = 0; idf < nstate; idf++)
+            {
+                if (v_1(idf, idf) > 1.e-1) {
+                    ek(nstate * nshapeS + idf, nstate * nshapeS + idf) = 1.;
+                }
+            }
+            break;
+        default:
+            DebugStop();
+            // nulo introduzindo o BIGNUMBER pelos valores da condição
+    } // 1 Val1 : a leitura é 00 01 10 11
+
+    // std::cout << "EF = " << ef << std::endl;
+
+}
+
 int TPZMixedElasticityNDAiry::ClassId() const {
     return Hash("TPZMixedElasticityNDAiry") ^ TBase::ClassId() << 1;
 }
 
+/** Returns the variable index associated with the name. */
+int TPZMixedElasticityNDAiry::VariableIndex(const std::string &name) const {
+    if (!strcmp("displacement", name.c_str())) return 9;
+    if (!strcmp("Displacement", name.c_str())) return 9; //function U ***
+    if (!strcmp("DisplacementMem", name.c_str())) return 9;
+    if (!strcmp("Pressure", name.c_str())) return 1;
+    if (!strcmp("MaxStress", name.c_str())) return 2;
+    if (!strcmp("PrincipalStress1", name.c_str())) return 3;
+    if (!strcmp("PrincipalStress2", name.c_str())) return 4;
+    if (!strcmp("SigmaX", name.c_str())) return 5;
+    if (!strcmp("SigmaR", name.c_str())) return 30;
+    if (!strcmp("SigmaT", name.c_str())) return 31;
+    if (!strcmp("TauRT", name.c_str())) return 32;
+    if (!strcmp("ExactDisplacement", name.c_str())) return 33;
+    if (!strcmp("ExactStress", name.c_str())) return 34;
+    if (!strcmp("StressAiry", name.c_str())) return 35;
+    if (!strcmp("StressTotal", name.c_str())) return 36;
+    if (!strcmp("SigmaY", name.c_str())) return 6;
+    if (!strcmp("TauXY", name.c_str())) return 8; //Cedric
+    if (!strcmp("Strain", name.c_str())) return 11; //Philippe
+    if (!strcmp("SigmaZ", name.c_str())) return 12; //Philippe
+    if (!strcmp("sig_x", name.c_str())) return 5;
+    if (!strcmp("sig_y", name.c_str())) return 6;
+    if (!strcmp("tau_xy", name.c_str())) return 8; //Cedric
+    if (!strcmp("Displacement6", name.c_str())) return 7;
+    if (!strcmp("Stress", name.c_str())) return 10; //function S ***
+    if (!strcmp("Flux", name.c_str())) return 10;
+    if (!strcmp("J2", name.c_str())) return 20;
+    if (!strcmp("I1", name.c_str())) return 21;
+    if (!strcmp("J2Stress", name.c_str())) return 20;
+    if (!strcmp("I1Stress", name.c_str())) return 21;
+    if (!strcmp("Alpha", name.c_str())) return 22;
+    if (!strcmp("PlasticSqJ2", name.c_str())) return 22;
+    if (!strcmp("PlasticSqJ2El", name.c_str())) return 22;
+    if (!strcmp("YieldSurface", name.c_str())) return 27;
+    if (!strcmp("NormalStress", name.c_str())) return 23;
+    if (!strcmp("ShearStress", name.c_str())) return 24;
+    if (!strcmp("NormalStrain", name.c_str())) return 25;
+    if (!strcmp("ShearStrain", name.c_str())) return 26;
+    if (!strcmp("Rotation", name.c_str())) return 27; //function P ***
+    if(!strcmp("Young_Modulus",name.c_str()))        return 28;
+    if(!strcmp("Poisson",name.c_str()))        return 29;
+
+    return TPZMaterial::VariableIndex(name);
+}
 
 /** @brief Returns the solution associated with the var index based on the finite element approximation */
 void TPZMixedElasticityNDAiry::Solution(const TPZVec<TPZMaterialDataT<STATE>> &data, int var, TPZVec<STATE> &Solout) {
@@ -476,16 +681,16 @@ void TPZMixedElasticityNDAiry::Solution(const TPZVec<TPZMaterialDataT<STATE>> &d
     }
     TPZManVector<STATE, 3> disp(dim);
     for (int i = 0; i < dim; i++) {
-        disp[i] = data[2].sol[0][i];
+        disp[i] = data[1].sol[0][i];
     }
     TPZFNMatrix<9, STATE> antisym(dim, dim, 0.);
-    antisym(0, 1) = data[3].sol[0][0];
+    antisym(0, 1) = data[2].sol[0][0];
     antisym(1, 0) = -antisym(0, 1);
     if(dim == 3)
     {
-        antisym(0, 2) = data[3].sol[0][1];
+        antisym(0, 2) = data[2].sol[0][1];
         antisym(2, 0) = -antisym(0, 2);
-        antisym(1, 2) = data[3].sol[0][2];
+        antisym(1, 2) = data[2].sol[0][2];
         antisym(2, 1) = -antisym(1, 2);
     }
 
@@ -564,16 +769,21 @@ void TPZMixedElasticityNDAiry::Solution(const TPZVec<TPZMaterialDataT<STATE>> &d
     }
     // SigmaY
     if (var == 6) {
-        Solout[0] = sigma(1, 1);
+        Solout[0] = sigma(1, 1);// + data[3].sol[0][1];
         return;
     }
 
     // SigmaX                
     if (var == 5) {
-        Solout[0] = sigma(0, 0);
+        Solout[0] = sigma(0, 0);// + data[3].sol[0][0];
         return;
     }
-    // SigmaX                
+    //  TauXY
+    if (var == 8) {
+        Solout[0] = 0.5 * (sigma(0, 1) + sigma(1, 0));// + data[3].sol[0][2];
+        return;
+    }
+    // Exact displacement                
     if (var == 33) {
         TPZVec<STATE> u_exact(fDimension,0.);
         TPZFMatrix<STATE> du_exact(fDimension,fDimension,0.);
@@ -585,11 +795,34 @@ void TPZMixedElasticityNDAiry::Solution(const TPZVec<TPZMaterialDataT<STATE>> &d
         }
         return;
     }
-    //  TauXY
-    if (var == 8) {
-        Solout[0] = 0.5 * (sigma(0, 1) + sigma(1, 0));
+    // Exact stress                
+    if (var == 34) {
+        
+        TPZVec<STATE> u_exact(fDimension,0.);
+        TPZFMatrix<STATE> du_exact(fDimension,fDimension,0.);
+        if (this->fExactSol) {
+            this->fExactSol(data[0].x, u_exact, du_exact);
+        }
+        // std::cout << "duexact = " << du_exact << std::endl;
+        // For 2D only
+        Solout[0] = du_exact(0,0);//Sigma x
+        Solout[1] = du_exact(1,1);//Sigma y
+        Solout[2] = (du_exact(1,0)+du_exact(0,1))/2;//Tau xy
         return;
     }
+    // Stress Airy                
+    if (var == 35) {
+        Solout = data[3].sol[0];
+        return;
+    }
+    // Stress Total                
+    if (var == 36) {
+        Solout[0] = sigma(0, 0) + data[3].sol[0][0];
+        Solout[1] = sigma(1, 1) + data[3].sol[0][1];
+        Solout[2] = 0.5 * (sigma(0, 1) + sigma(1, 0)) + data[3].sol[0][2];
+        return;
+    }
+    
     // SigmaR              
     if (var == 30) {
         REAL r = sqrt(x[0]*x[0] + x[1]*x[1]);
@@ -714,7 +947,7 @@ void TPZMixedElasticityNDAiry::Errors(const TPZVec<TPZMaterialDataT<STATE>> &dat
 
     TPZManVector<STATE, 3> disp(dim);
     for (int i = 0; i < dim; i++) {
-        disp[i] = data[2].sol[0][i];
+        disp[i] = data[1].sol[0][i];
     }
 
 #ifdef LOG4CXX
@@ -759,13 +992,13 @@ void TPZMixedElasticityNDAiry::Errors(const TPZVec<TPZMaterialDataT<STATE>> &dat
         rotation.Resize(fDimension,0.);
         rotationExact.Resize(fDimension,0.);
     }
-    rotation[0] = data[3].sol[0][0];
+    rotation[0] = data[2].sol[0][0];
     rotationExact[0] = 0.5*(du_exact(1, 0)-du_exact(0, 1));
     if(dim == 3)
     {
-        rotation[1] = data[3].sol[0][1];
+        rotation[1] = data[2].sol[0][1];
         rotationExact[1] = 0.5*(du_exact(2, 0)-du_exact(0, 2));
-        rotation[2] = data[3].sol[0][2];
+        rotation[2] = data[2].sol[0][2];
         rotationExact[2] = 0.5*(du_exact(1, 2)-du_exact(2, 1));
 
     }

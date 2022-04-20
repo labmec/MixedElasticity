@@ -25,7 +25,7 @@ public:
 
     void GetStress(TPZVec<REAL> &x, TPZFMatrix<REAL> &stress, TPZFMatrix<REAL> &divStress);
 
-    int NShapeF(){return gRadius.size();};
+    int NShapeF(){return 1;};
 
     int ClassId() const;
 
@@ -45,6 +45,8 @@ private:
 
     //Hole radius
     TPZVec<REAL> gRadius;
+
+    int nShape;
 
 };
 

@@ -68,7 +68,17 @@ public:
     /** @brief Calculates the element stiffness matrix using 4 spaces - Stress tensor, Airy stress functions, displacement, and skew-symmetric tensor (for weak symmetry) */
     virtual void Contribute_4spaces(const TPZVec<TPZMaterialDataT<STATE>> &data, REAL weight, TPZFMatrix<STATE> &ek, TPZFMatrix<STATE> &ef);
 
-
+    /**
+     * @brief It computes a contribution to the stiffness matrix and load vector at one BC integration point
+     * @param[in] datavec stores all input data
+     * @param[in] weight is the weight of the integration rule
+     * @param[out] ek is the element matrix
+     * @param[out] ef is the rhs vector
+     * @param[in] bc is the boundary condition material
+     */
+    void ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &datavec, REAL weight, TPZFMatrix<STATE> &ek,
+                      TPZFMatrix<STATE> &ef, TPZBndCondT<STATE> &bc) override;
+                      
     /**
      * @brief Returns the solution associated with the var index based on the
      * finite element approximation at a point
@@ -87,6 +97,9 @@ public:
     void Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, TPZVec<REAL> &errors) override;
 
     virtual int ClassId() const override;
+
+    virtual int VariableIndex(const std::string &name) const override;
+
 };
 
 #endif

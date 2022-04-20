@@ -84,6 +84,8 @@ using namespace pzshape;
 #include "AiryFunctionHoledPlate.h"
 #include "AiryFunctionLoadedBeam.h"
 #include "TPZCompElDiscStress.h"
+#include "TPZCompElDiscStressBound.h"
+#include "TPZCompMeshTools.h"
 
 #include <cmath>
 #include <set>
@@ -194,26 +196,31 @@ TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     //Boundary conditions:
     TPZFMatrix<STATE> val1(2, 2, 0.);
     TPZManVector<STATE> val2s(2, 0.), val2(2, 0.);
-    // val2s[0] = 10.0; // vx -> 0
+    val2s[0] = 1.0; // vx -> 0
     // val2s[1] = 0.0; // vy -> 0
 
     auto * BCond0 = material->CreateBC(material, -1, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
     BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
-    auto * BCond1 = material->CreateBC(material, -2, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
+    auto * BCond1 = material->CreateBC(material, -2, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno superior
     BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
-    auto * BCond2 = material->CreateBC(material, -3, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno esquerda
+    auto * BCond2 = material->CreateBC(material, -3, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
     BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
-    auto * BCond3 = material->CreateBC(material, -4, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    val2[0] = 0.; // vy -> 0
+    val2[1] = 0.; // vy -> 0
+    val1(0, 0) = 0;
+    val1(1, 1) = material->BigNumber();
+    auto * BCond3 = material->CreateBC(material, -4, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
     BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
-    auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2s); //Cria material que implementa a condicao de contorno direita
+    val1(1, 1) = 0;
+    auto * BCond5 = material->CreateBC(material, -5, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
     BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
@@ -482,30 +489,30 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
     
     //Right
-    // val2[0] = 0.; // vy -> 0
+    val2[0] = 1.; // vy -> 0
     // val2[1] = 0.; // vy -> 0
     // val1(0, 0) = 0;
     // val1(1, 1) = material->BigNumber();
-    auto * BCond2 = material->CreateBC(material, -4, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
+    auto * BCond2 = material->CreateBC(material, -2, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
     BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
     
     //Left
-    // val2[0] = 1.; // vy -> 0
-    // val2[1] = 0.; // vy -> 0
-    // val1(0, 0) = 0;
-    // val1(1, 1) = material->BigNumber();
-    auto * BCond3 = material->CreateBC(material, -2, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+    val2[0] = 0.; // vy -> 0
+    val2[1] = 0.; // vy -> 0
+    val1(0, 0) = 0;
+    val1(1, 1) = material->BigNumber();
+    auto * BCond3 = material->CreateBC(material, -4, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
     BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
     
     //Hole
     val2[1] = 0.;
-    auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+    auto * BCond5 = material->CreateBC(material, -5, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
     BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),4);
     cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
-    // //Point
+    //Point
     // TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
     // auto * BCPoint = material->CreateBC(material, -6, pointtype, val3, val2); //Cria material que implementa um ponto para a pressão
     // cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
@@ -588,20 +595,21 @@ int main(int argc, char *argv[]) {
     elas->gE = 1.;
     // elas->gPoisson = 0.3040039545229857;
     elas->gPoisson = 0.0;
-    elas->fProblemType = TElasticity2DAnalytic::EUniformLoadedBeam;
+    // elas->fProblemType = TElasticity2DAnalytic::EUniformLoadedBeam;
+    elas->fProblemType = TElasticity2DAnalytic::EHoledPlate;
     elas->fPlaneStress = 0;
     gAnalytic = elas;
 
     unsigned int stressPOrder = pOrder; //Polynomial order of the approximation
     int stressInternalPOrder = stressPOrder; //k
-    stressInternalPOrder += 0; //k+2
+    stressInternalPOrder += 2; //k+2
 
     int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
     int rotationPOrder = displacementPOrder;
-    TPZGeoMesh *gmesh = ReadMeshFromGmsh("../../mesh/plate.msh");
+    TPZGeoMesh *gmesh = ReadMeshFromGmsh("../../mesh/holed_plate.msh");
 
-    // std::set<int> matIdCorner= {-5};
-    // TPZRefPatternTools::RefineDirectional(gmesh,matIdCorner);
+    std::set<int> matIdCorner= {-5};
+    TPZRefPatternTools::RefineDirectional(gmesh,matIdCorner);
     
 
 #ifdef PZDEBUG
@@ -640,9 +648,10 @@ int main(int argc, char *argv[]) {
 
     TPZManVector<TPZCompMesh*, 4> meshvector_HDiv(4);
     meshvector_HDiv[0] = cmesh_S_HDiv;
-    meshvector_HDiv[1] = cmesh_Airy;
-    meshvector_HDiv[2] = cmesh_U_HDiv;
-    meshvector_HDiv[3] = cmesh_P_HDiv;
+    meshvector_HDiv[1] = cmesh_U_HDiv;
+    meshvector_HDiv[2] = cmesh_P_HDiv;
+    meshvector_HDiv[3] = cmesh_Airy;
+
     TPZBuildMultiphysicsMesh::AddElements(meshvector_HDiv, cmesh_m_HDiv);
     TPZBuildMultiphysicsMesh::AddConnects(meshvector_HDiv, cmesh_m_HDiv);
     TPZBuildMultiphysicsMesh::TransferFromMeshes(meshvector_HDiv, cmesh_m_HDiv);
@@ -665,9 +674,9 @@ int main(int argc, char *argv[]) {
     if(cmesh_S_HDiv->ApproxSpace().HDivFam() != HDivFamily::EHDivKernel)
     {
         TPZCompMesh * cmesh_m_Hybrid;
-        TPZManVector<TPZCompMesh*, 3> meshvector_Hybrid(3);
+        TPZManVector<TPZCompMesh*, 4> meshvector_Hybrid(4);
         TPZHybridizeHDiv hybridizer;
-        bool group_element = true;
+        bool group_element = false;
         tie(cmesh_m_Hybrid, meshvector_Hybrid) = hybridizer.Hybridize(cmesh_m_HDiv, meshvector_HDiv, group_element, -1.);
         cmesh_m_Hybrid->InitializeBlock();
         cmesh = cmesh_m_Hybrid;
@@ -680,11 +689,13 @@ int main(int argc, char *argv[]) {
         std::ofstream filecU("MalhaC_U.txt"); //Prints the displacement computational mesh in txt format
         std::ofstream filecP("MalhaC_P.txt"); //Prints the rotation computational mesh in txt format
         meshvector[0]->Print(filecS);
-        meshvector[1]->Print(filecAiry);
-        meshvector[2]->Print(filecU);
-        meshvector[3]->Print(filecP);
+        meshvector[1]->Print(filecU);
+        meshvector[2]->Print(filecP);
+        meshvector[3]->Print(filecAiry);
 #endif
     }
+
+    TPZCompMeshTools::CreatedCondensedElements(cmesh,true,false);
     
     TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
     TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>>  matskl(cmesh);
@@ -751,11 +762,14 @@ int main(int argc, char *argv[]) {
         // vecnames.Push("Flux");
         vecnames.Push("displacement");
         vecnames.Push("ExactDisplacement");
+        vecnames.Push("ExactStress");
+        vecnames.Push("StressAiry");
+        vecnames.Push("StressTotal");
         // vecnames.Push("Stress");
         int count = 0;
         an.SetStep(count);
         an.DefineGraphMesh(2, scalnames, vecnames, plotfile);
-        an.PostProcess(0);
+        an.PostProcess(3);
     }
 
 #ifdef PZDEBUG
@@ -884,32 +898,56 @@ TPZCompMesh *CMesh_Airy(TPZGeoMesh *gmesh, int pOrder) {
     cmesh->SetDefaultOrder(pOrder); //Default polynomial order of the approximation
     cmesh->SetDimModel(dim); //Dimesion of the model
 
-    TPZNullMaterial<> * material = new TPZNullMaterial<>(matID);
-    material->SetNStateVariables(dim);
-    material->SetDimension(dim);
-    cmesh->InsertMaterialObject(material); //Insere material na malha
+    std::set<int> matids = {matID,-1,-2,-3,-4,-5};
+
+    for (std::set<int>::iterator it=matids.begin(); it!=matids.end(); ++it)
+    {
+        TPZNullMaterial<> *mat = new TPZNullMaterial<>(*it);
+        mat->SetDimension(dim);
+        mat->SetNStateVariables(1);
+        cmesh->InsertMaterialObject(mat);
+    }
     
     //Creates the analytical functions
-    TPZVec<REAL> axis(3,0.);
-    REAL length = 2.;
-    REAL height = 0.5;
-    auto AiryFunction = new AiryFunctionLoadedBeam(axis,height,length);
-    AiryFunction->SetElasticConstants(1., 0., 1., 1.);
-
+    TPZFMatrix<REAL> center(1,2,0.);
+    TPZVec<REAL> radius(1,0.);
+    radius[0] = 0.5;
+    
+    auto AiryFunction = new AiryFunctionHoledPlate(center,radius);
+    AiryFunction->SetElasticConstants(1., 0., 1.);
+    
     for (int64_t el = 0; el < gmesh->NElements(); el++) {
         TPZGeoEl *gel = gmesh->Element(el);
 
         if(!gel) DebugStop();
         auto matid = gel->MaterialId();
 
-        if (matid != matID) continue;
-
-        // Create volumetric elements
-        auto cel = new TPZCompElDiscStress<AiryFunctionLoadedBeam>(*cmesh,gel);
-        cel->SetStressDef(AiryFunction);
+        if (matid == matID){
+            // Create volumetric elements
+            auto cel = new TPZCompElDiscStress<AiryFunctionHoledPlate>(*cmesh,gel);
+            cel->SetStressDef(AiryFunction);
+        } else {
+            auto cel = new TPZCompElDiscStressBound<AiryFunctionHoledPlate>(*cmesh,gel);
+            cel->SetStressDef(AiryFunction);
+        }
     }
-    // cmesh->SetAllCreateFunctionsDiscontinuous();
+    
+    // //Setting the proper connect indexes to the boundary elements
+    // for (auto cel:cmesh->ElementVec())
+    // {
+    //     if (cel->Dimension() == dim) continue;
 
+    //     auto gel = cel->Reference();
+    //     int nsides = gel->NSides();
+    //     TPZGeoElSide gelside(gel, nsides - 1);
+    //     TPZGeoElSide neighbour = gelside.Neighbour();
+
+    //     auto celneigh = neighbour.Element()->Reference();
+    //     auto conIndex = celneigh->ConnectIndex(0);
+    //     cel->SetConnectIndex(0,conIndex);
+
+    //     std::cout << "Neighbour = " << neighbour.Element()->Index() << " " << conIndex << std::endl;
+    // }
     
 
     cmesh->AutoBuild();

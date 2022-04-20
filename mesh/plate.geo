@@ -11,9 +11,12 @@ Line(1) = {1,2};
 Line(2) = {2,3};
 Line(3) = {3,4};
 Line(4) = {4,1};
-n = 0;
-Transfinite Curve {1, 3} = 4*n+1 Using Progression 1;
-Transfinite Curve {2, 4} = n+1 Using Progression 1;
+n = 1;
+//Transfinite Curve {1, 3} = 4*n+1 Using Progression 1;
+//Transfinite Curve {2, 4} = n+1 Using Progression 1;
+Transfinite Curve {1, 3} = 2 Using Progression 1;
+Transfinite Curve {2, 4} = 2 Using Progression 1;
+
 //+
 Curve Loop(1) = {4, 1, 2, 3};
 //+
@@ -31,5 +34,5 @@ Physical Curve("Upper") = {3};
 Physical Curve("Left") = {4};
 
 //+
-Physical Point("Corner") = {1};
+//Physical Point("Corner") = {1};
 //+

@@ -984,6 +984,7 @@ int TPZMixedElasticityND::VariableIndex(const std::string &name) const {
     if (!strcmp("SigmaT", name.c_str())) return 31;
     if (!strcmp("TauRT", name.c_str())) return 32;
     if (!strcmp("ExactDisplacement", name.c_str())) return 33;
+    if (!strcmp("ExactStress", name.c_str())) return 34;
     if (!strcmp("SigmaY", name.c_str())) return 6;
     if (!strcmp("TauXY", name.c_str())) return 8; //Cedric
     if (!strcmp("Strain", name.c_str())) return 11; //Philippe
@@ -1060,6 +1061,9 @@ int TPZMixedElasticityND::NSolutionVariables(int var) const {
         case 32:
             return 1;
         case 33:
+        case 34:
+        case 35:
+        case 36:
             return 3;
         default:
             return TPZMaterial::NSolutionVariables(var);
@@ -1189,7 +1193,7 @@ void TPZMixedElasticityND::Solution(const TPZVec<TPZMaterialDataT<STATE>> &data,
         Solout[0] = sigma(0, 0);
         return;
     }
-    // SigmaX                
+    // Exact displacement                
     if (var == 33) {
         TPZVec<STATE> u_exact(fDimension,0.);
         TPZFMatrix<STATE> du_exact(fDimension,fDimension,0.);
@@ -1201,6 +1205,7 @@ void TPZMixedElasticityND::Solution(const TPZVec<TPZMaterialDataT<STATE>> &data,
         }
         return;
     }
+
     //  TauXY
     if (var == 8) {
         Solout[0] = 0.5 * (sigma(0, 1) + sigma(1, 0));

@@ -9,19 +9,20 @@
 
 #include <stdio.h>
 #include <iostream>
-#include "TPZCompElDisc.h"
+#include "TPZCompElDiscStress.h"
 #include "pzgeoel.h"
 #include "pzinterpolationspace.h"
 #include "TPZMaterialData.h"
+#include "TPZMaterialDataT.h"
 
 
 template<class StressDef>
-class TPZCompElDiscStressBoundBound : public TPZCompElDisc {
+class TPZCompElDiscStressBound : public TPZCompElDiscStress<StressDef> {
 
 public:
 
     /** @brief Default constructor */
-    TPZCompElDiscStressBound() : TPZCompElDisc() {
+    TPZCompElDiscStressBound() : TPZCompElDiscStress<StressDef>() {
     }
     
     /** @brief Constructor of the discontinuous element associated with geometric element */
@@ -54,15 +55,19 @@ public:
     /** @brief Returns the shapes number of the element */
 	virtual int NShapeF() const override;
 
-    void SetStressDef(TPZAutoPointer<StressDef > stress){
+    void SetStressDef(StressDef* stress){
         fStress = stress;
     };
+
+    /** @brief Returns the max order of interpolation. */
+	virtual int MaxOrder() override;
+
 
 protected:
 	/** @brief A pz function to allow the inclusion of extra shape functions which are defined externally. 
      * The arguments in this case are: 
     */
-    TPZAutoPointer<StressDef> fStress;
+    StressDef* fStress;
 
 
 };

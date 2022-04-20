@@ -1,4 +1,11 @@
 
+add_library(mixedElast SHARED "")
+target_link_libraries(mixedElast PUBLIC NeoPZ::pz)
+target_include_directories(mixedElast PUBLIC ${PZ_INCLUDE_DIRS})
+
+target_include_directories(mixedElast PUBLIC
+${CMAKE_CURRENT_SOURCE_DIR})
+
 set(sources 
     TPZMixedElasticityND.cpp 
     TPZCompelDiscScaled.h 
@@ -11,30 +18,39 @@ set(sources
     AiryFunctionHoledPlate.cpp
     AiryFunctionLoadedBeam.cpp
     TPZCompElDiscStress.cpp
-    TPZCompElDiscStressBound.cpp)
+    TPZCompElDiscStressBound.cpp
+    TPZMixedElasticityCMeshCreator.cpp
+    TPZMixedElasticityUtils.cpp
+    )
 file(GLOB headers *.h)
 
+target_sources(mixedElast PRIVATE
+  ${sources})
 
 set(Mymain main.cpp )
-add_executable(MixedElasticitySquare ${Mymain} ${sources})
-target_link_libraries(MixedElasticitySquare NeoPZ::pz)
+add_executable(MixedElasticitySquare ${Mymain})
+target_link_libraries(MixedElasticitySquare mixedElast)
 
 set(Main1Fracture main_1fracture.cpp )
-add_executable(1Fracture ${Main1Fracture} ${sources})
-target_link_libraries(1Fracture NeoPZ::pz)
+add_executable(1Fracture ${Main1Fracture})
+target_link_libraries(1Fracture mixedElast)
 
 set(MainTest main_test.cpp )
-add_executable(Test ${MainTest} ${sources})
-target_link_libraries(Test NeoPZ::pz) 
+add_executable(Test ${MainTest})
+target_link_libraries(Test mixedElast) 
+
+set(MainBeam main_beam.cpp )
+add_executable(Beam ${MainBeam})
+target_link_libraries(Beam mixedElast) 
 
 set(MymainOsc main_MixedElastOscillat.cpp )
-add_executable(MixedElasticityOscillatory ${MymainOsc} ${sources})
-target_link_libraries(MixedElasticityOscillatory NeoPZ::pz ${OpenCV_LIBS})
+add_executable(MixedElasticityOscillatory ${MymainOsc})
+target_link_libraries(MixedElasticityOscillatory  ${OpenCV_LIBS} mixedElast)
 
 
-set(MymainG mainGirkmann.cpp ${sources} ${headers})
+set(MymainG mainGirkmann.cpp ${headers})
 add_executable(MixedElasticityGirkmann ${MymainG})
-target_link_libraries(MixedElasticityGirkmann NeoPZ::pz)
+target_link_libraries(MixedElasticityGirkmann mixedElast)
 configure_file(Girkmann.msh Girkmann.msh COPYONLY)
 
 

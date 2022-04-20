@@ -13,6 +13,7 @@
 #include "pzgeoel.h"
 #include "pzinterpolationspace.h"
 #include "TPZMaterialData.h"
+#include "TPZMaterialDataT.h"
 
 
 template<class StressDef>
@@ -34,6 +35,11 @@ public:
 		return new TPZCompElDiscStress(mesh,*this);
 	}
 
+    /** @brief Default destructor */
+	virtual ~TPZCompElDiscStress(){
+
+    };
+
     /**
      * @brief Initialize a material data and its attributes based on element dimension, number
      * of state variables and material definitions
@@ -54,15 +60,23 @@ public:
     /** @brief Returns the shapes number of the element */
 	virtual int NShapeF() const override;
 
-    void SetStressDef(TPZAutoPointer<StressDef > stress){
+    void SetStressDef(StressDef* stress){
         fStress = stress;
     };
+    
+    virtual void ReallyComputeSolution(TPZMaterialDataT<STATE> &data) override;
+    
+    /** @brief Returns the number of shapefunctions associated with a connect*/
+	virtual int NConnectShapeF(int inod, int order) const override;
 
+    /** @brief Returns the max order of interpolation. */
+	virtual int MaxOrder() override;
+    
 protected:
 	/** @brief A pz function to allow the inclusion of extra shape functions which are defined externally. 
      * The arguments in this case are: 
     */
-    TPZAutoPointer<StressDef> fStress;
+    StressDef* fStress;
 
 
 };
