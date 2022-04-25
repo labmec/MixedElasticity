@@ -1114,8 +1114,8 @@ int main(int argc, char *argv[]) {
     EConfig conf = EThiago;
     int initial_p = 1;
     int final_p = 1;
-    int initial_h = 1;
-    int final_h = 3;
+    int initial_h = 0;
+    int final_h = 2;
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;
@@ -1147,13 +1147,13 @@ int main(int argc, char *argv[]) {
 //    mkl_set_num_threads(numthreads);
 //#endif
 
-    std::stringstream rootname;
+    std::stringstream basename;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
     double x0 = -1;
     double y0 = -1;
 
     //Problem data:
-    rootname << ConfigRootname[conf];
+    basename << ConfigRootname[conf];
     switch (conf) {
         case EThiago:
         case EThiagoPlus:
@@ -1173,7 +1173,7 @@ int main(int argc, char *argv[]) {
                 elas->fE = 1.;//206.8150271873455;
                 elas->fPoisson = 0.;//0.3040039545229857;
                 elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
-                rootname << ConfigRootname[conf] << "_LoadedBeam";
+                basename << ConfigRootname[conf] << "_LoadedBeam";
                 gAnalytic = elas;
             }
             else
@@ -1201,7 +1201,7 @@ int main(int argc, char *argv[]) {
             hy = 2;
             x0 = 1;
             y0 = -1;
-            rootname << "_Test1";
+            basename << "_Test1";
         }
             break;
         default:
@@ -1218,8 +1218,10 @@ int main(int argc, char *argv[]) {
 
     for (unsigned int pref = initial_p - 1; pref < final_p; ++pref) {
         for (unsigned int href = initial_h; href <= final_h; ++href) {
+            std::stringstream rootname;
+            rootname << basename.str();
             unsigned int h_level = 1 << href;
-            unsigned int nelx = h_level, nely = h_level; //Number of elements in x and y directions
+            int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
             unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
             unsigned int stressPOrder = pref + 1; //Polynomial order of the approximation
@@ -1239,15 +1241,25 @@ int main(int argc, char *argv[]) {
             }
             else if(dim == 3)
             {
-				if (elementType == ESquare)
-					gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
-				else if (elementType == ETetraheda)
-					gmesh = Create3DTetMesh(href);
+//				if (elementType == ESquare)
+//					gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+//				else if (elementType == ETetraheda)
+//					gmesh = Create3DTetMesh(href);
+                TPZManVector<REAL,3> minX = {0.,0.,0.};
+                TPZManVector<REAL,3> maxX = {1.,1.,1.};
+                TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
+                TPZManVector<int> nDivs = {nelx,nelx,nelx};
+                MMeshType meshType = MMeshType::ETetrahedral;
+                rootname << "_tetra_";
+                bool createBoundEls = true;
+                gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
+                        matids, nDivs, meshType, createBoundEls);
             }
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
                 check.UniformRefine(1);
+                rootname << "Ref1_";
             }
             
             TPZVec<int64_t> coarseindices(gmesh->NElements());
@@ -1278,7 +1290,8 @@ int main(int argc, char *argv[]) {
 //            {
 //                control.CMesh()->MaterialVec().erase(bcmatid);
 //            }
-            control.BuildComputationalMesh(true);
+            bool substruct = true;
+            control.BuildComputationalMesh(substruct);
             rootname << "_Sub";
             cmesh_m_HDiv = control.CMesh();
             
@@ -1287,7 +1300,7 @@ int main(int argc, char *argv[]) {
 #ifdef PZDEBUG
             {
             std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
-            std::ofstream filegvtk("MalhaGeo.vtk"); //Prints the geometric mesh in vtk format
+            std::ofstream filegvtk("MalhaGeo7.vtk"); //Prints the geometric mesh in vtk format
             gmesh->Print(fileg);
             TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }

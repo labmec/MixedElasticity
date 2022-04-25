@@ -74,6 +74,7 @@
 #include "TPZGenGrid2D.h"
 #include "TPZExtendGridDimension.h"
 #include "TPZGeoMeshTools.h"
+#include "TPZCompMeshTools.h"
 
 #include "TPZAnalyticSolution.h"
 
@@ -1190,8 +1191,8 @@ int main(int argc, char *argv[]) {
     int n_ref_h = final_h - initial_h + 1;
 
 #ifdef PZ_USING_MKL
-    mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
-    mkl_set_num_threads(numthreads);
+//    mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
+//    mkl_set_num_threads(numthreads);
 #endif
 
     std::stringstream rootname_common;
@@ -1257,8 +1258,8 @@ int main(int argc, char *argv[]) {
                 TElasticity2DAnalytic *elas = new TElasticity2DAnalytic;
                 elas->gE = 1.;
                 elas->gPoisson = 0.2;
-                elas->fProblemType = TElasticity2DAnalytic::EStretchx;
-                rootname_common << ConfigRootname[conf] << "_Stretchx";
+                elas->fProblemType = TElasticity2DAnalytic::ELoadedBeam;
+                rootname_common << ConfigRootname[conf] << "_LoadedBeam";
                 elas->fPlaneStress = 1;
                 gAnalytic = elas;
             }
@@ -1388,6 +1389,8 @@ int main(int argc, char *argv[]) {
             //            AddMultiphysicsInterfaces(*cmesh_m_HDiv);
 
             //CreateCondensedElements(cmesh_m_HDiv);
+            TPZCompMeshTools::GroupElements(cmesh_m_HDiv);
+            TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 4);
 
 #ifdef PZDEBUG
             {
@@ -1405,7 +1408,7 @@ int main(int argc, char *argv[]) {
             
             TPZCompMesh *cmesh = cmesh_m_HDiv;
             TPZManVector<TPZCompMesh *> meshvector = meshvector_HDiv;
-            if(1)
+            if(0)
             {
                 TPZCompMesh * cmesh_m_Hybrid;
                 TPZManVector<TPZCompMesh*, 5> meshvector_Hybrid(5);
@@ -1427,8 +1430,8 @@ int main(int argc, char *argv[]) {
 #endif
 
 
-#ifdef PZ_USING_MKL
-            TPZSymetricSpStructMatrix matskl(cmesh);
+#ifdef PZ_USING_MKL2
+            TPZSSpStructMatrix<STATE> matskl(cmesh);
 #else
             TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
 #endif
@@ -1443,7 +1446,7 @@ int main(int argc, char *argv[]) {
             std::cout << "Assemble finished." << std::endl;
 
             TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE> *>(cmesh_m_HDiv->FindMaterial(matID));
-            TPZManVector<REAL, 6> Errors(materr->NEvalErrors());
+            TPZManVector<REAL, 10> Errors(materr->NEvalErrors());
 //            TElasticityExample1 example;
 //            an.SetExact(example.Exact());
             //            an.PostProcessError(Errors,std::cout);
@@ -1561,6 +1564,7 @@ int main(int argc, char *argv[]) {
             bool store_errors = true;
             cmesh->ElementSolution().Redim(cmesh->NElements(), Errors.size());
             std::cout << "Computing errors." << std::endl;
+            Errors.Fill(0.);
             an.PostProcessError(Errors, store_errors, ErroOut);
             std::cout << "Computed errors." << std::endl;
             ErroOut << "nelx ribporder internalporder n_condensed - n_total - error_sigma - error_energy - error_div_sigma - error_u - error_r - error_as\n";
@@ -1622,5 +1626,5 @@ int main(int argc, char *argv[]) {
 
     std::cout << "FINISHED!" << std::endl;
 
-    return 0;
+    ;   return 0;
 }
