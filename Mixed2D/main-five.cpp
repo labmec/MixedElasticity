@@ -1167,7 +1167,7 @@ int main(int argc, char *argv[]) {
     int final_h = 2;
     bool plotting = true;
     EElementType elementType = ESquare;
-    int numthreads = 0;
+    int numthreads = 8;
 
     switch (argc) {
         case 9:
@@ -1219,7 +1219,7 @@ int main(int argc, char *argv[]) {
             {
                 TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
                 elas->fE = 1.;//206.8150271873455;
-                elas->fPoisson = 0.0;//0.3040039545229857;
+                elas->fPoisson = 0.3;//0.3040039545229857;
                 elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
                 rootname_common << ConfigRootname[conf] << "3_LoadedBeam";
                 gAnalytic = elas;
@@ -1284,6 +1284,7 @@ int main(int argc, char *argv[]) {
     //    TElasticityExample1::Sigma(x, sigma);
     //    TElasticityExample1::Force(x, force);
 
+	std::vector<REAL> L2err(final_h+1), H1err(final_h+1);
     for (unsigned int pref = initial_p - 1; pref < final_p; ++pref) {
         for (unsigned int href = initial_h; href <= final_h; ++href) {
             std::stringstream rootname;
@@ -1309,10 +1310,10 @@ int main(int argc, char *argv[]) {
             }
             else if(dim == 3)
             {
-                TPZManVector<REAL,3> minX = {0.,0.,0.};
-                TPZManVector<REAL,3> maxX = {1.,1.,1.};
+                TPZManVector<REAL,3> minX = {-1.,0.,0.};
+                TPZManVector<REAL,3> maxX = {1.,1.,5.};
                 TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
-                TPZManVector<int> nDivs = {nelx,nelx,nelx};
+                TPZManVector<int> nDivs = {nelx,nelx,5*nelx};
                 MMeshType meshType = MMeshType::ETetrahedral;
                 rootname << "_tetra_";
                 bool createBoundEls = true;
@@ -1500,7 +1501,7 @@ int main(int argc, char *argv[]) {
                 int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
                 an.DefineGraphMesh(dim, scalnames, vecnames, plotfile);
-                an.PostProcess(2);
+                an.PostProcess(0);
             }
 
 #ifdef PZDEBUG
@@ -1559,7 +1560,7 @@ int main(int argc, char *argv[]) {
             ErroOut << "(* Number of equations before condensation " << cmesh->Solution().Rows() << " *)" << std::endl;
             ErroOut << "(*\n";
             an.SetExact(gAnalytic->ExactSolution());
-            numthreads = 0;
+            numthreads = 8;
             an.SetThreadsForError(numthreads);
             bool store_errors = true;
             cmesh->ElementSolution().Redim(cmesh->NElements(), Errors.size());
@@ -1580,6 +1581,8 @@ int main(int argc, char *argv[]) {
             }
             ErroOut << "Error[[" << href + 1 << "," << pref + 1 << "]] = {" << output << "};\n";
 
+			L2err[href] = Errors[0];
+			H1err[href] = Errors[3];
             std::cout << "Errors = " << Errors << std::endl;
 
 
@@ -1625,6 +1628,19 @@ int main(int argc, char *argv[]) {
     //    an.PostProcess(postProcessResolution,dim);
 
     std::cout << "FINISHED!" << std::endl;
-
-    ;   return 0;
+	cout << "Errors:\n" << endl;
+	cout << "ErrorsL2 = {" << L2err[0];
+	
+	for (int i = 1; i < final_h+1; i++) {
+		cout << "," << L2err[i];
+	}
+	cout << "};" << endl;
+	
+	cout << "ErrorsH1 = {" << H1err[0];
+	for (int i = 1; i < final_h+1; i++) {
+		cout << "," << H1err[i];
+	}
+	cout << "};\n" << endl;
+	
+    return 0;
 }

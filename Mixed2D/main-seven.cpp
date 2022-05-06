@@ -1114,12 +1114,12 @@ int main(int argc, char *argv[]) {
     EConfig conf = EThiago;
     int initial_p = 1;
     int final_p = 1;
-    int initial_h = 0;
-    int final_h = 2;
+    int initial_h = 2;
+    int final_h = 3;
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;
-    int numthreads = 0;
+    int numthreads = 8;
 
     switch (argc) {
         case 9:
@@ -1171,7 +1171,7 @@ int main(int argc, char *argv[]) {
             {
                 TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
                 elas->fE = 1.;//206.8150271873455;
-                elas->fPoisson = 0.;//0.3040039545229857;
+                elas->fPoisson = 0.3;//0.3040039545229857;
                 elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
                 basename << ConfigRootname[conf] << "_LoadedBeam";
                 gAnalytic = elas;
@@ -1245,15 +1245,15 @@ int main(int argc, char *argv[]) {
 //					gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 //				else if (elementType == ETetraheda)
 //					gmesh = Create3DTetMesh(href);
-                TPZManVector<REAL,3> minX = {0.,0.,0.};
-                TPZManVector<REAL,3> maxX = {1.,1.,1.};
-                TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
-                TPZManVector<int> nDivs = {nelx,nelx,nelx};
-                MMeshType meshType = MMeshType::ETetrahedral;
-                rootname << "_tetra_";
-                bool createBoundEls = true;
-                gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
-                        matids, nDivs, meshType, createBoundEls);
+				TPZManVector<REAL,3> minX = {-1.,0.,0.};
+				TPZManVector<REAL,3> maxX = {1.,1.,5.};
+				TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
+				TPZManVector<int> nDivs = {nelx,nelx,5*nelx};
+				MMeshType meshType = MMeshType::ETetrahedral;
+				rootname << "_tetra_";
+				bool createBoundEls = true;
+				gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
+						matids, nDivs, meshType, createBoundEls);
             }
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
@@ -1397,7 +1397,7 @@ int main(int argc, char *argv[]) {
                 int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
                 an.DefineGraphMesh(cmesh_m_HDiv->Dimension(), scalnames, vecnames, plotfile);
-                an.PostProcess(2);
+                an.PostProcess(0);
             }
 
 #ifdef PZDEBUG

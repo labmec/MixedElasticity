@@ -31,3 +31,6 @@ set(MHMSimple main_simple.cpp common_files.h common_files.cpp)
 add_executable(MHMTest ${MHMSimple})
 target_link_libraries(MHMTest NeoPZ::pz )
 
+set(mainH1 main-h1.cpp)
+add_executable(ElasticityH1 ${mainH1})
+target_link_libraries(ElasticityH1 NeoPZ::pz)

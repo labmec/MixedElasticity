@@ -171,6 +171,7 @@ void TPZMixedElasticityND::ElasticityModulusTensor(TPZFMatrix<STATE> &MatrixElas
     {
         // sig = lambda tr(E) I + 2 mu E
         // E = 1/(2 mu) (sig - lambda /(3 lambda + 2 mu) tr(sig) I)
+		// NOTE: NS double-checked and this is correct
         MatrixElast(Exx, Exx) = 1./(2.*mu)*(1.-lambda/(3.*lambda+2.*mu));
         MatrixElast(Exx, Eyy) = 1./(2.*mu)*(-lambda/(3.*lambda+2.*mu));
         MatrixElast(Exx, Ezz) = MatrixElast(Exx, Eyy);
