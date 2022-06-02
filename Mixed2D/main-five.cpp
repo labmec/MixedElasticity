@@ -78,6 +78,8 @@
 
 #include "TPZAnalyticSolution.h"
 
+#include "TPZMixedElasticityCMeshCreator.h"
+
 #include <cmath>
 #include <set>
 
@@ -118,60 +120,7 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
 */
 TPZGeoMesh *CreateGMesh3D(int nelx, int nely, double hx, double hy, double x0, double y0, EElementType meshType);
 
-/**
- * @brief Funcao para criar a malha computacional da tensao
- * @note Responsavel pela criacao dos espacos de aproximacao do problema
- * @param gmesh malha geometrica
- * @param pOrder ordem polinomial de aproximacao
- */
-TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder);
-
-/// change the order of the internal connect to the given order
-void ChangeInternalOrder(TPZCompMesh *cmesh, int pOrder);
-
-/**
- * @brief Funcao para criar a malha computacional do deslocamento
- * @note Responsavel pela criacao dos espacos de aproximacao do problema
- * @param gmesh malha geometrica
- * @param pOrder ordem polinomial de aproximacao
- */
-TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder);
-
-/**
- * @brief Funcao para criar a malha computacional da rotacao
- * @note Responsavel pela criacao dos espacos de aproximacao do problema
- * @param gmesh malha geometrica
- * @param pOrder ordem polinomial de aproximacao
- * @param elementdimension tamanho de elementos
- */
-TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdimension);
-
-/**
- * @brief Funcao para criar a malha computacional multi-fisica
- * @note Responsavel pela criacao dos espacos de aproximacao do problema
- * @param gmesh malha geometrica
- * @param pOrder ordem polinomial de aproximacao
- */
-TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder);
 TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder);
-
-/**
- * @brief Funcao para criar a malha computacional multi-fisica ser simulado
- * @note Responsavel pela criacao dos espacos de aproximacao do problema
- * @param gmesh malha geometrica
- * @param pOrder ordem polinomial de aproximacao
- */
-TPZCompMesh *CMesh_Girk(TPZGeoMesh *gmesh, int pOrder);
-
-/**
- * @brief Create a rigid body mode space
- * @param gmesh Geometric mesh
- * @param lagrange order of the lagrange multiplier associated with the connects
- *  the number of state variables associated with the connects will be 3 or 6 depending on the dimension of
- *   the geometric mesh
- */
-TPZCompMesh *CMesh_RigidBody(TPZGeoMesh *gmesh, int lagrange);
-
 
 void CreateCondensedElements(TPZCompMesh *cmesh);
 
@@ -361,401 +310,6 @@ TPZCompEl *CreateInterfaceEl(TPZGeoEl *gel, TPZCompMesh &mesh, int64_t &index) {
     return NULL;
 }
 
-TPZCompMesh *CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
-    //Criando malha computacional:
-    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-    cmesh->SetDefaultOrder(pOrder); //Default polynomial order of the approximation
-    cmesh->SetDimModel(dim); //Dimesion of the model
-
-    //Definition of the approximation space:
-    cmesh->SetAllCreateFunctionsHDiv(); //Creating H(div) functions:
-
-    //Criando material cujo nSTATE = 2:
-
-    TPZNullMaterial<STATE> * material = new TPZNullMaterial<STATE>(matID);
-    material->SetNStateVariables(dim);
-    material->SetDimension(dim);
-    cmesh->InsertMaterialObject(material); //Insere material na malha
-
-
-
-    //Boundary conditions:
-    TPZFMatrix<STATE> val1(2, 2, 0.);
-    TPZManVector<STATE> val2s(2, 0.), val2(2, 0.);
-    val2s[0] = 10.0; // vx -> 0
-    val2s[1] = 0.0; // vy -> 0
-
-    auto * BCond0 = material->CreateBC(material, matBCbott, neumann, val1, val2); //Cria material que implementa a condição de contorno inferior
-    cmesh->InsertMaterialObject(BCond0); //Insere material na malha
-
-    auto * BCond1 = material->CreateBC(material, matBCtop, neumann, val1, val2); //Cria material que implementa a condicao de contorno superior
-    cmesh->InsertMaterialObject(BCond1); //Insere material na malha
-
-    auto * BCond2 = material->CreateBC(material, matBCleft, neumann, val1, val2s); //Cria material que implementa a condicao de contorno esquerda
-    cmesh->InsertMaterialObject(BCond2); //Insere material na malha
-
-    auto * BCond3 = material->CreateBC(material, matBCright, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    cmesh->InsertMaterialObject(BCond3); //Insere material na malha
-
-    auto * BCond4 = material->CreateBC(material, 2, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    cmesh->InsertMaterialObject(BCond4); //Insere material na malha
-
-    auto * BCond5 = material->CreateBC(material, -5, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    cmesh->InsertMaterialObject(BCond5); //Insere material na malha
-
-    auto * BCond6 = material->CreateBC(material, -6, neumann, val1, val2s); //Cria material que implementa a condicao de contorno direita
-    cmesh->InsertMaterialObject(BCond6); //Insere material na malha
-
-    val2s[0] = 0;
-    val2s[1] = 0;
-    cmesh->InsertMaterialObject(material->CreateBC(material, matLagrange, neumann, val1, val2s)); //Insere material na malha
-
-    //Criando elementos computacionais que gerenciarão o espaco de aproximacao da malha:
-    int ncel = cmesh->NElements();
-    for (int i = 0; i < ncel; i++) {
-        TPZCompEl * compEl = cmesh->ElementVec()[i];
-        if (!compEl) continue;
-        TPZInterfaceElement * facel = dynamic_cast<TPZInterfaceElement *> (compEl);
-        if (facel)DebugStop();
-    }
-
-    cmesh->AutoBuild();
-    cmesh->AdjustBoundaryElements();
-    cmesh->CleanUpUnconnectedNodes();
-
-    return cmesh;
-
-}
-
-TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder) {
-    if (pOrder == 0) {
-        // Constant-per-element
-        TPZCompMesh *cmesh = new TPZCompMesh(gmesh);
-        cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
-        cmesh->SetDimModel(dim); //Insere dimensão do modelo
-
-        cmesh->SetAllCreateFunctionsDiscontinuous();
-        cmesh->ApproxSpace().CreateDisconnectedElements(true);
-
-        
-        TPZNullMaterial<> * material = new TPZNullMaterial<>(matID);
-        material->SetDimension(dim);
-        material->SetNStateVariables(dim);
-
-        cmesh->InsertMaterialObject(material); //Insere material na malha
-
-        std::set<int> materialids;
-        materialids.insert(matID);
-        {
-            gmesh->ResetReference();
-            int64_t nel = gmesh->NElements();
-            for (int64_t el = 0; el < nel; el++) {
-                TPZGeoEl *gel = gmesh->Element(el);
-                if (!gel)continue;
-                int matid = gel->MaterialId();
-                if (materialids.find(matid) == materialids.end()) {
-                    continue;
-                }
-                new TPZCompElDiscScaled(*cmesh, gel);
-                gel->ResetReference();
-            }
-        }
-
-        int ncon = cmesh->NConnects();
-        for (int i = 0; i < ncon; i++) {
-            TPZConnect &newnod = cmesh->ConnectVec()[i];
-            newnod.SetLagrangeMultiplier(1);
-        }
-
-        int64_t nelem = cmesh->NElements();
-        for (int64_t el = 0; el < nelem; el++) {
-            TPZCompEl *cel = cmesh->Element(el);
-            TPZCompElDiscScaled *disc = dynamic_cast<TPZCompElDiscScaled *> (cel);
-            if (!disc) {
-                continue;
-            }
-            disc->SetTotalOrderShape();
-            disc->SetTrueUseQsiEta();
-        }
-
-        cmesh->CleanUpUnconnectedNodes();
-        cmesh->ExpandSolution();
-        return cmesh;
-    } else {
-        //Criando malha computacional:
-        TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-        cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
-        cmesh->SetDimModel(dim); //Insere dimensão do modelo
-
-        cmesh->SetAllCreateFunctionsContinuous(); //Criando funções H1
-        cmesh->ApproxSpace().CreateDisconnectedElements(true);
-
-
-        TPZNullMaterial<> * material = new TPZNullMaterial<>(matID);
-        material->SetDimension(dim);
-        material->SetNStateVariables(dim);
-
-        cmesh->InsertMaterialObject(material); //Insere material na malha
-
-
-
-
-        //Criando elementos computacionais que gerenciarão o espaco de aproximação da malha
-
-        int64_t ncel = cmesh->NElements();
-        for (int64_t i = 0; i < ncel; i++) {
-            TPZCompEl * compEl = cmesh->ElementVec()[i];
-            if (!compEl) continue;
-            TPZInterfaceElement * facel = dynamic_cast<TPZInterfaceElement *> (compEl);
-            if (facel)DebugStop();
-
-        }
-        std::set<int> materialids;
-        materialids.insert(matID);
-        cmesh->AutoBuild(materialids);
-        cmesh->LoadReferences();
-        cmesh->ApproxSpace().CreateDisconnectedElements(false);
-        cmesh->AutoBuild();
-
-        int64_t ncon = cmesh->NConnects();
-        for (int64_t i = 0; i < ncon; i++) {
-            TPZConnect &newnod = cmesh->ConnectVec()[i];
-            newnod.SetLagrangeMultiplier(1);
-        }
-        for (int64_t i = 0; i < ncel; i++) {
-            TPZCompEl * compEl = cmesh->ElementVec()[i];
-            if (!compEl) continue;
-            compEl->Connect(0).SetLagrangeMultiplier(3);
-
-        }
-
-
-        //    cmesh->AdjustBoundaryElements();
-        //    cmesh->CleanUpUnconnectedNodes();
-
-        return cmesh;
-    }
-}
-
-TPZCompMesh *CMesh_P(TPZGeoMesh *gmesh, int pOrder, REAL elementdim) {
-    //Criando malha computacional:
-    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-    cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
-    cmesh->SetDimModel(dim); //Insere dimensão do modelo
-
-    cmesh->SetAllCreateFunctionsDiscontinuous();
-
-    //    cmesh->SetAllCreateFunctionsContinuous(); //Criando funções H1
-    cmesh->ApproxSpace().CreateDisconnectedElements(true);
-
-    //Criando material cujo nSTATE = 1:
-    TPZNullMaterial<> *material = new TPZNullMaterial<>(matID); //criando material que implementa a formulacao fraca do problema modelo
-    material->SetDimension(dim);
-    if(dim == 3)
-    {
-        material->SetNStateVariables(3);
-    }
-
-    cmesh->InsertMaterialObject(material); //Insere material na malha
-    std::set<int> materialids;
-    materialids.insert(matID);
-    //materialids.insert(3);
-    {
-        gmesh->ResetReference();
-        int64_t nel = gmesh->NElements();
-        for (int64_t el = 0; el < nel; el++) {
-            TPZGeoEl *gel = gmesh->Element(el);
-            if (!gel)continue;
-            if(gel->HasSubElement()) continue;
-            int matid = gel->MaterialId();
-            if (materialids.find(matid) == materialids.end()) {
-                continue;
-            }
-            new TPZCompElDiscScaled(*cmesh, gel);
-            gel->ResetReference();
-        }
-    }
-
-    //cmesh->LoadReferences();
-    //    cmesh->ApproxSpace().CreateDisconnectedElements(false);
-    //    cmesh->AutoBuild();
-
-
-    int ncon = cmesh->NConnects();
-    for (int i = 0; i < ncon; i++) {
-        TPZConnect &newnod = cmesh->ConnectVec()[i];
-        newnod.SetLagrangeMultiplier(1);
-    }
-
-    int64_t nelem = cmesh->NElements();
-    for (int64_t el = 0; el < nelem; el++) {
-        TPZCompEl *cel = cmesh->Element(el);
-        TPZCompElDiscScaled *disc = dynamic_cast<TPZCompElDiscScaled *> (cel);
-        if (!disc) {
-            continue;
-        }
-        disc->SetTotalOrderShape();
-        disc->SetFalseUseQsiEta();
-        disc->SetConstC(elementdim);
-        disc->SetScale(1./elementdim);
-    }
-    cmesh->CleanUpUnconnectedNodes();
-    cmesh->ExpandSolution();
-    return cmesh;
-
-}
-
-TPZCompMesh *CMesh_RigidBody(TPZGeoMesh *gmesh, int lagrange) {
-    //Criando malha computacional:
-    int dim = gmesh->Dimension();
-    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-    cmesh->SetDefaultOrder(0); //Insere ordem polimonial de aproximação
-    cmesh->SetDimModel(dim); //Insere dimensão do modelo
-
-    cmesh->SetAllCreateFunctionsDiscontinuous();
-
-    //Criando material cujo nSTATE = 1:
-    TPZNullMaterial<> *material = new TPZNullMaterial<>(matID); //criando material que implementa a formulacao fraca do problema modelo
-    material->SetDimension(dim);
-    if(dim == 2)
-    {
-        material->SetNStateVariables(3);
-    }
-    else if(dim == 3)
-    {
-        material->SetNStateVariables(6);
-    }
-
-    cmesh->InsertMaterialObject(material); //Insere material na malha
-    std::set<int> materialids;
-    materialids.insert(matID);
-    //materialids.insert(3);
-    {
-        gmesh->ResetReference();
-        int64_t nel = gmesh->NElements();
-        for (int64_t el = 0; el < nel; el++) {
-            TPZGeoEl *gel = gmesh->Element(el);
-            if (!gel)continue;
-            if(gel->HasSubElement()) continue;
-            int matid = gel->MaterialId();
-            if (materialids.find(matid) == materialids.end()) {
-                continue;
-            }
-            TPZCompElDisc *disc = new TPZCompElDisc(*cmesh, gel);
-            disc->SetFalseUseQsiEta();
-            gel->ResetReference();
-        }
-    }
-    int ncon = cmesh->NConnects();
-    for (int i = 0; i < ncon; i++) {
-        TPZConnect &newnod = cmesh->ConnectVec()[i];
-        newnod.SetLagrangeMultiplier(lagrange);
-    }
-
-    cmesh->CleanUpUnconnectedNodes();
-    cmesh->ExpandSolution();
-    return cmesh;
-
-}
-
-TPZCompMesh *CMesh_Girk(TPZGeoMesh *gmesh, int pOrder) {
-
-    //Criando malha computacional:
-    int bc_inte_order = 10;
-    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-    cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
-    cmesh->SetDimModel(dim); //Insere dimensão do modelo
-    cmesh->SetAllCreateFunctionsMultiphysicElem();
-    //    TElasticityExample1 example;
-
-    // Criando material:
-
-
-    REAL E = 20.59; //* @param E elasticity modulus
-    REAL nu = 0.; //* @param nu poisson coefficient
-
-
-    REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
-    REAL fy = -32.69; //* @param fx forcing function \f$ -x = fx \f$
-    int plain = 1.; //* @param plainstress = 1 \f$ indicates use of plainstress
-
-    TPZMixedElasticityND * material1 = new TPZMixedElasticityND(1, E, nu, fx, fy, plain, dim);
-    //TPZMixedElasticityMaterial * material2 = new TPZMixedElasticityMaterial(3,E,nu,fx,fy,plain,dim);
-    //material1->SetAxisSymmetric();
-    //material2->SetAxisSymmetric();
-    //material->SetForcingFunction(example.ForcingFunction());
-    // Inserindo material na malha
-    //    TPZAutoPointer<TPZFunction<STATE> > fp = new TPZDummyFunction<STATE> (f_source);
-    //    TPZAutoPointer<TPZFunction<STATE> > pp = new TPZDummyFunction<STATE> (p_exact);
-    //    TPZAutoPointer<TPZFunction<STATE> > vp = new TPZDummyFunction<STATE> (v_exact);
-
-    //    material->SetForcingFunction(fp);
-    //    material->SetForcingFunctionExactPressure(pp);
-    //    material->SetForcingFunctionExact(vp);
-
-    cmesh->InsertMaterialObject(material1);
-    //cmesh->InsertMaterialObject(material2);
-
-    //Condições de contorno:
-
-    TPZFMatrix<REAL> val1(2, 2, 0.);
-    TPZManVector<REAL> val2(2, 0.);
-    REAL x;
-    val1(0, 0) = 0;
-    val1(1, 1) = material1->BigNumber();
-
-    auto * BCond0 = material1->CreateBC(material1, -3, mixed, val1, val2); //Cria material que implementa a condição de contorno inferior
-    //BCond0->SetForcingFunction(p_exact1, bc_inte_order);
-    //BCond0->SetForcingFunction(solucao_exact,bc_inte_order);
-    //BCond0->SetForcingFunction(example.ValueFunction());
-    cmesh->InsertMaterialObject(BCond0); //Insere material na malha
-
-    auto * BCond1 = material1->CreateBC(material1, -2, neumann, val1, val2); //Cria material que implementa a condicao de contorno superior
-    //BCond1->SetForcingFunction(example.ValueFunction());
-    //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
-    //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
-    cmesh->InsertMaterialObject(BCond1); //Insere material na malha
-
-    val2[1] = 43.533;
-    val2.Fill(0.);
-    //val1(1,0) = material1->gBigNumber;
-    //val1(0,1) = material1->gBigNumber;
-    auto * BCond2 = material1->CreateBC(material1, -1, mixed, val1, val2); //Cria material que implementa a condicao de contorno esquerda
-    //BCond2->SetForcingFunction(example.ValueFunction());
-    //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
-    //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
-    cmesh->InsertMaterialObject(BCond2); //Insere material na malha
-
-    val2.Fill(0.);
-    auto * BCond3 = material1->CreateBC(material1, 2, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    //BCond3->SetForcingFunction(example.ValueFunction());
-    //BCond3->SetForcingFunction(p_exact1,bc_inte_order);
-    //BCond3->SetForcingFunction(solucao_exact,bc_inte_order);
-    cmesh->InsertMaterialObject(BCond3); //Insere material na malha
-
-    //Ponto
-
-    //    TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
-    //    val4(0,0)=0.0;
-    //
-    //    TPZMaterial * BCPoint = material->CreateBC(material, matPoint, pointtype, val3, val4); //Cria material que implementa um ponto para a pressão
-    //    cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
-
-
-
-
-
-    //Criando elementos computacionais que gerenciarão o espaco de aproximação da malha:
-
-    cmesh->AutoBuild();
-    cmesh->AdjustBoundaryElements();
-    cmesh->CleanUpUnconnectedNodes();
-
-    return cmesh;
-
-
-}
-
 TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &example) {
 
     //Criando malha computacional:
@@ -830,135 +384,6 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
     //
     //    TPZMaterial * BCPoint = material->CreateBC(material, matPoint, pointtype, val3, val4); //Cria material que implementa um ponto para a pressão
     //    cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
-
-
-
-
-
-    //Criando elementos computacionais que gerenciarão o espaco de aproximação da malha:
-
-    cmesh->AutoBuild();
-    cmesh->AdjustBoundaryElements();
-    cmesh->CleanUpUnconnectedNodes();
-
-    return cmesh;
-
-}
-
-TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
-
-    //Creating computational mesh:
-    TPZCompMesh * cmesh = new TPZCompMesh(gmesh);
-    cmesh->SetDefaultOrder(pOrder); //Insere ordem polimonial de aproximação
-    cmesh->SetDimModel(dim); //Insere dimensão do modelo
-    cmesh->SetAllCreateFunctionsMultiphysicElem();
-
-    // Criando material:
-
-    // example is initialized in the calling method
-    //    example.fProblemType = TElasticityExample1::EThiago;
-    //    example.fStressState   = TElasticityExample1::EPlaneStrain;
-
-    REAL E = 0.; //* @param E elasticity modulus
-    REAL nu = 0.; //* @param nu poisson coefficient
-
-    TElasticity2DAnalytic * analytic2D = 0;
-    TElasticity3DAnalytic * analytic3D = 0;
-    if(dim == 2)
-    {
-        analytic2D = dynamic_cast<TElasticity2DAnalytic *>(gAnalytic);
-        if(!analytic2D) DebugStop();
-        TPZManVector<REAL,3> x(3,0.);
-        analytic2D->Elastic(x, E, nu);
-    }
-    else if(dim == 3)
-    {
-        analytic3D = dynamic_cast<TElasticity3DAnalytic *>(gAnalytic);
-        if(!analytic3D) DebugStop();
-        TPZManVector<REAL,3> x(3,0.);
-        analytic3D->Elastic(x, E, nu);
-    }
-
-    REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
-    REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
-    int plainStress = 0; //* @param plainstress = 1 \f$ indicates use of plainstress
-    if(dim == 2)
-    {
-        if (analytic2D->fPlaneStress == 0) {
-            plainStress = 0;
-        } else {
-            plainStress = 1;
-        }
-    }
-    TPZMixedElasticityND * material = new TPZMixedElasticityND(matID, E, nu, fx, fy, plainStress, dim);
-
-    if (TElasticityExample1::fStressState == TElasticityExample1::EAxiSymmetric) {
-        material->SetAxisSymmetric();
-    }
-    material->SetForcingFunction(gAnalytic->ForceFunc(),3);
-    // Inserindo material na malha
-    //    TPZAutoPointer<TPZFunction<STATE> > fp = new TPZDummyFunction<STATE> (f_source);
-    //    TPZAutoPointer<TPZFunction<STATE> > pp = new TPZDummyFunction<STATE> (p_exact);
-    //    TPZAutoPointer<TPZFunction<STATE> > vp = new TPZDummyFunction<STATE> (v_exact);
-
-    //    material->SetForcingFunction(fp);
-    //    material->SetForcingFunctionExactPressure(pp);
-    //    material->SetForcingFunctionExact(vp);
-
-    cmesh->InsertMaterialObject(material);
-
-
-    //Condições de contorno:
-
-    TPZFMatrix<REAL> val1(dim, dim, 0.);
-    TPZManVector<REAL> val2(dim, 0.);
-    //val1(0,0) = 100.0;
-
-    auto * BCond0 = material->CreateBC(material, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
-    //BCond0->SetForcingFunction(p_exact1, bc_inte_order);
-    //BCond0->SetForcingFunction(solucao_exact,bc_inte_order);
-    BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    cmesh->InsertMaterialObject(BCond0); //Insere material na malha
-
-    auto * BCond1 = material->CreateBC(material, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-    BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
-    //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
-    cmesh->InsertMaterialObject(BCond1); //Insere material na malha
-
-    auto * BCond2 = material->CreateBC(material, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
-    BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
-    //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
-    cmesh->InsertMaterialObject(BCond2); //Insere material na malha
-
-    auto * BCond3 = material->CreateBC(material, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    cmesh->InsertMaterialObject(BCond3); //Insere material na malha
-
-    auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    cmesh->InsertMaterialObject(BCond5); //Insere material na malha
-
-    auto * BCond6 = material->CreateBC(material, -6, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond6->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    cmesh->InsertMaterialObject(BCond6); //Insere material na malha
-
-    auto * BCond4 = material->CreateBC(material, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond4->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    cmesh->InsertMaterialObject(BCond4); //Insere material na malha
-
-    //Ponto
-
-    //    TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
-    //    val4(0,0)=0.0;
-    //
-    //    TPZMaterial * BCPoint = material->CreateBC(material, matPoint, pointtype, val3, val4); //Cria material que implementa um ponto para a pressão
-    //    cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
-
-
-
-
 
     //Criando elementos computacionais que gerenciarão o espaco de aproximação da malha:
 
@@ -1046,29 +471,7 @@ void CreateCondensedElements2(TPZCompMesh *cmesh) {
     }
 }
 
-/// change the order of the internal connect to the given order
-
-void ChangeInternalOrder(TPZCompMesh *cmesh, int pOrder) {
-    int64_t nel = cmesh->NElements();
-    for (int64_t el = 0; el < nel; el++) {
-        TPZCompEl *cel = cmesh->Element(el);
-        if (!cel) continue;
-
-        TPZGeoEl *gel = cel->Reference();
-        if (gel->Dimension() != cmesh->Dimension()) {
-            continue;
-        }
-        int nc = cel->NConnects();
-        TPZInterpolatedElement *intel = dynamic_cast<TPZInterpolatedElement *> (cel);
-        if (!intel) DebugStop();
-
-        intel->ForceSideOrder(gel->NSides() - 1, pOrder);
-    }
-    cmesh->ExpandSolution();
-}
-
 // Compute the area
-
 REAL AxiArea(TPZGeoMesh * gmesh, std::set<int> matids) {
     int64_t nel = gmesh->NElements();
     REAL result = 0.;
@@ -1164,7 +567,7 @@ int main(int argc, char *argv[]) {
     int initial_p = 1;
     int final_p = 1;
     int initial_h = 0;
-    int final_h = 2;
+    int final_h = 0;
     bool plotting = true;
     EElementType elementType = ESquare;
     int numthreads = 8;
@@ -1315,6 +718,7 @@ int main(int argc, char *argv[]) {
                 TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
                 TPZManVector<int> nDivs = {nelx,nelx,5*nelx};
                 MMeshType meshType = MMeshType::ETetrahedral;
+                // MMeshType meshType = MMeshType::EHexahedral;
                 rootname << "_tetra_";
                 bool createBoundEls = true;
                 gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
@@ -1335,25 +739,33 @@ int main(int argc, char *argv[]) {
                 TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
 #endif
+
+            //Computational mesh creator configuration
+            TPZMixedElasticityCMeshCreator meshCreator;
+            meshCreator.SetDomainMaterialId(matID);
+            std::set<int> dirichletBC = {matBCbott,matBCtop,matBCleft,matBCright,2,-5,-6};
+            meshCreator.SetDirichletMaterialId(dirichletBC);
+
+
             //Creating computational mesh:
             //Creates the computational mesh for the stress field (HDiv)
-            TPZCompMesh *cmesh_S_HDiv = CMesh_S(gmesh, stressPOrder);
-            ChangeInternalOrder(cmesh_S_HDiv, stressInternalPOrder);
+            TPZCompMesh *cmesh_S_HDiv = meshCreator.CMesh_S(gmesh, stressPOrder);
+            meshCreator.ChangeInternalOrder(cmesh_S_HDiv, stressInternalPOrder);
             //Creates the computational mesh for the displacement field (H1 disconnected)
-            TPZCompMesh *cmesh_U_HDiv = CMesh_U(gmesh, displacementPOrder);
+            TPZCompMesh *cmesh_U_HDiv = meshCreator.CMesh_U(gmesh, displacementPOrder);
             //Creates the computational mesh for the rotation field (Discontinuous)
-            TPZCompMesh *cmesh_P_HDiv = CMesh_P(gmesh, rotationPOrder, hx / nelx);
+            TPZCompMesh *cmesh_P_HDiv = meshCreator.CMesh_P(gmesh, rotationPOrder, hx / nelx);
             // creates the mesh for distributed forces in each element
-            TPZCompMesh *cmesh_distributedforce = CMesh_RigidBody(gmesh, 2);
+            TPZCompMesh *cmesh_distributedforce = meshCreator.CMesh_RigidBody(gmesh, 2);
             // creates the computational mesh representing the average displacement and rotation
-            TPZCompMesh *cmesh_averagedisp = CMesh_RigidBody(gmesh, 4);
+            TPZCompMesh *cmesh_averagedisp = meshCreator.CMesh_RigidBody(gmesh, 4);
 
 
 
             //TPZCompMesh *cmesh_m_HDiv = CMesh_Girk(gmesh, RibpOrder);
             
             //Creates the multi-physics computational mesh
-            TPZCompMesh *cmesh_m_HDiv = CMesh_m(gmesh, stressInternalPOrder);
+            TPZCompMesh *cmesh_m_HDiv = meshCreator.CMesh_m(gmesh, stressInternalPOrder,gAnalytic);
             //TPZCompMesh *cmesh_m_HDiv = CMesh_AxiS(gmesh, InternalpOrder,  Example);
             
 #ifdef PZDEBUG
@@ -1431,11 +843,11 @@ int main(int argc, char *argv[]) {
 #endif
 
 
-#ifdef PZ_USING_MKL2
+// #ifdef PZ_USING_MKL2
             TPZSSpStructMatrix<STATE> matskl(cmesh);
-#else
-            TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
-#endif
+// #else
+//             TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
+// #endif
             matskl.SetNumThreads(numthreads);
             an.SetStructuralMatrix(matskl);
             TPZStepSolver<STATE> step;
@@ -1498,6 +910,7 @@ int main(int argc, char *argv[]) {
                 vecnames.Push("displacement");
                 vecnames.Push("Stress");
                 vecnames.Push("Flux");
+                // vecnames.Push("ExactDisplacement");
                 int count = href * n_ref_p + pref - (initial_p - 1);
                 an.SetStep(count);
                 an.DefineGraphMesh(dim, scalnames, vecnames, plotfile);

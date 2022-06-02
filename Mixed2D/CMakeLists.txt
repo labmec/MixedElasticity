@@ -1,5 +1,13 @@
 
-set(sources TPZMixedElasticityND.cpp TPZCompelDiscScaled.h TPZCompelDiscScaled.cpp meshgen.h meshgen.cpp pzmixedelasmat.h pzmixedelasmat.cpp)
+set(sources 
+    TPZMixedElasticityND.cpp 
+    TPZCompelDiscScaled.h 
+    TPZCompelDiscScaled.cpp 
+    meshgen.h 
+    meshgen.cpp 
+    pzmixedelasmat.h 
+    pzmixedelasmat.cpp
+    TPZMixedElasticityCMeshCreator.cpp)
 file(GLOB headers *.h)
 
 
