@@ -858,7 +858,7 @@ void TPZMixedElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &d
     }
     int ndisp = datavec[1].phi.Rows();
 
-    const TPZVec<REAL> &v_2 = bc.Val2();
+    const TPZVec<REAL> v_2 = bc.Val2();
     TPZFNMatrix<9, STATE> v_1 = bc.Val1();
 
     // Setting forcing function
@@ -870,6 +870,8 @@ void TPZMixedElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &d
         v_2[1] = res[1];
         if(fDimension == 3) v_2[2] = res[2];
 
+    }else{
+        std::cout << "Não pare aqui!" << std::endl;
     }
 
     // Setting the phis
@@ -966,6 +968,7 @@ void TPZMixedElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &d
             DebugStop();
             // nulo introduzindo o BIGNUMBER pelos valores da condição
     } // 1 Val1 : a leitura é 00 01 10 11
+    
 }
 
 
@@ -1007,6 +1010,8 @@ int TPZMixedElasticityND::VariableIndex(const std::string &name) const {
     if (!strcmp("Rotation", name.c_str())) return 27; //function P ***
     if(!strcmp("Young_Modulus",name.c_str()))        return 28;
     if(!strcmp("Poisson",name.c_str()))        return 29;
+    if (!strcmp("ExactDisplacement", name.c_str())) return 33;
+    if (!strcmp("ExactStress", name.c_str())) return 34;
 
     return TPZMaterial::VariableIndex(name);
 }
@@ -1055,6 +1060,8 @@ int TPZMixedElasticityND::NSolutionVariables(int var) const {
         case 30:
         case 31:
             return 1;
+        case 33:
+            return 3;
         default:
             return TPZMaterial::NSolutionVariables(var);
     }
@@ -1198,6 +1205,40 @@ void TPZMixedElasticityND::Solution(const TPZVec<TPZMaterialDataT<STATE>> &data,
         Solout[0] = 0.5 * (sigma(1, 2) + sigma(2, 1));
         return;
     }
+
+    // Exact displacement                
+    if (var == 33) {
+        TPZVec<STATE> u_exact(fDimension,0.);
+        TPZFMatrix<STATE> du_exact(fDimension,fDimension,0.);
+        if (this->fExactSol) {
+            this->fExactSol(data[0].x, u_exact, du_exact);
+        }
+        for (int idf = 0; idf < dim; idf++) {
+            Solout[idf] = u_exact[idf];
+        }
+        return;
+    }
+    // Exact stress                
+    if (var == 34) {
+        
+        TPZVec<STATE> u_exact(fDimension,0.);
+        TPZFMatrix<STATE> du_exact(fDimension,fDimension,0.);
+        if (this->fExactSol) {
+            this->fExactSol(data[0].x, u_exact, du_exact);
+        }
+        // std::cout << "duexact = " << du_exact << std::endl;
+        // For 2D only
+        Solout[0] = du_exact(0,0);//Sigma x
+        Solout[1] = du_exact(1,1);//Sigma y
+        Solout[2] = (du_exact(1,0)+du_exact(0,1))/2;//Tau xy
+
+
+        return;
+    }
+
+
+
+
     //Strain
     if (var == 11) {
         Solout[Exx] = eps(0, 0);
