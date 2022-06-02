@@ -7,7 +7,8 @@ set(sources
     meshgen.cpp 
     pzmixedelasmat.h 
     pzmixedelasmat.cpp
-    TPZMixedElasticityCMeshCreator.cpp)
+    TPZMixedElasticityCMeshCreator.cpp
+    TPZMixedElasticityUtils.cpp)
 file(GLOB headers *.h)
 
 

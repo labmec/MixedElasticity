@@ -79,6 +79,7 @@
 #include "TPZAnalyticSolution.h"
 
 #include "TPZMixedElasticityCMeshCreator.h"
+#include "TPZMixedElasticityUtils.h" 
 
 #include <cmath>
 #include <set>
@@ -91,34 +92,15 @@ TPZAnalyticSolution *gAnalytic = 0;
 //------------------Elasticity Problem------------------------
 
 // local enum for mesh types @ToDo these names might lead to confusion. We should consider changing.
-enum EElementType {
-    ETriangular = 0, ESquare = 1, ETrapezoidal = 2
-};
+// enum EElementType {
+//     ETriangular = 0, ESquare = 1, ETrapezoidal = 2
+// };
 
 // @proposition - Pedro
 // enum ELocalMeshType {
 //     ETriang = 0, ESquare = 1, ETrapezoid = 3
 // };
 
-/**
- * @brief Funcao para criar a malha geometrica do problema a ser simulado
- * @note A malha sera unidim5ensional formada por nel elementos de tamanho elsize
- * @param uNDiv number of divisions ortogonal to the plates performed on the domain
- * @param vNDiv number of divisions parallel to the plates performed on the domain
- * @param nel numero de elementos
- * @param elsize tamanho dos elementos
- */
-TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, double y0, EElementType meshType);
-
-/**
-* @brief Funcao para criar a malha geometrica do problema a ser simulado
-* @note A malha sera tridimensional formada por nel elementos de tamanho elsize
-* @param nelx, nely number of elements in the x and y direction (the number of elements in the z direction = nelx
-* @param hx, hy size of the domain in x and y (size in z = hx)
-* @param x0, y0 bottom left point coordinate (bottom left in z = 0)
-* @param meshType = triangle, quadrilateral or trapeze
-*/
-TPZGeoMesh *CreateGMesh3D(int nelx, int nely, double hx, double hy, double x0, double y0, EElementType meshType);
 
 TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder);
 
@@ -232,75 +214,6 @@ void AddMultiphysicsInterfaces(TPZCompMesh &cmesh) {
             }
         }
     }
-}
-
-TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, double y0, EElementType meshType) {
-    //Creating geometric mesh, nodes and elements.
-    //Including nodes and elements in the mesh object:
-    TPZGeoMesh *gmesh = new TPZGeoMesh();
-    gmesh->SetDimension(2);
-
-    //Auxiliary vector to store coordinates:
-    //TPZVec <REAL> coord(3, 0.);
-    TPZVec<REAL> gcoord1(3, 0.);
-    TPZVec<REAL> gcoord2(3, 0.);
-    gcoord1[0] = x0;
-    gcoord1[1] = y0;
-    gcoord1[2] = 0;
-    gcoord2[0] = x0 + hx;
-    gcoord2[1] = y0 + hy;
-    gcoord2[2] = 0;
-    //Inicialização dos nós:
-
-    TPZManVector<int> nelem(2, 1);
-    nelem[0] = nelx;
-    nelem[1] = nely;
-
-    TPZGenGrid2D gengrid(nelem, gcoord1, gcoord2);
-
-    switch (meshType) {
-        case ETriangular:
-            gengrid.SetElementType(MMeshType::ETriangular);
-            break;
-        case ESquare:
-            gengrid.SetElementType(MMeshType::EQuadrilateral);
-            break;
-        case ETrapezoidal:
-            gengrid.SetElementType(MMeshType::EQuadrilateral);
-            gengrid.SetDistortion(0.25);
-            break;
-    }
-
-    gengrid.Read(gmesh, matID);
-    gengrid.SetBC(gmesh, 4, matBCbott);
-    gengrid.SetBC(gmesh, 5, matBCright);
-    gengrid.SetBC(gmesh, 6, matBCtop);
-    gengrid.SetBC(gmesh, 7, matBCleft);
-
-    gmesh->BuildConnectivity();
-    {
-        TPZCheckGeom check(gmesh);
-        check.CheckUniqueId();
-    }
-
-    //Printing geometric mesh:
-
-    //ofstream bf("before.vtk");
-    //TPZVTKGeoMesh::PrintGMeshVTK(gmesh, bf);
-    return gmesh;
-
-
-
-}
-
-TPZGeoMesh *CreateGMesh3D(int nelx, int nely, double hx, double hy, double x0, double y0, EElementType meshType) {
-//Creating geometric mesh, nodes and elements.
-//Including nodes and elements in the mesh object:
-    TPZGeoMesh *gmesh2D = CreateGMesh(nelx, nely, hx, hy, x0, y0, meshType);
-    TPZExtendGridDimension extend(gmesh2D, hx);
-    TPZGeoMesh *gmesh3D = extend.ExtendedMesh(nelx,-5,-6);
-//    delete gmesh2D;
-    return gmesh3D;
 }
 
 TPZCompEl *CreateInterfaceEl(TPZGeoEl *gel, TPZCompMesh &mesh, int64_t &index) {
@@ -569,14 +482,14 @@ int main(int argc, char *argv[]) {
     int initial_h = 0;
     int final_h = 0;
     bool plotting = true;
-    EElementType elementType = ESquare;
+    TPZMixedElasticityUtils::EElementType elementType = TPZMixedElasticityUtils::EElementType::ESquare;
     int numthreads = 8;
 
     switch (argc) {
         case 9:
             numthreads = atoi(argv[8]);
         case 8:
-            elementType = EElementType(atoi(argv[7]));
+            elementType = TPZMixedElasticityUtils::EElementType(atoi(argv[7]));
         case 7:
             plotting = atoi(argv[6]);
         case 6:
@@ -602,6 +515,8 @@ int main(int argc, char *argv[]) {
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
     double x0 = -1;
     double y0 = -1;
+
+    TPZMixedElasticityUtils util;
 
     //Problem data:
     switch (conf) {
@@ -704,12 +619,14 @@ int main(int argc, char *argv[]) {
             if (conf == EThiagoPlusPlus) {
                 stressInternalPOrder += 2; //k+2
             }
-            int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
+            int displacementPOrder = elementType == TPZMixedElasticityUtils::EElementType::ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
             int rotationPOrder = displacementPOrder;
             TPZGeoMesh *gmesh = 0;
             if(dim == 2)
             {
-                gmesh = CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+                // gmesh = CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
+                std::set<int> matIDBC = {matBCbott,matBCleft,matBCright,matBCtop};
+                gmesh = util.CreateGMesh(nelx, nely, hx, hy, x0, y0, elementType,matID,matIDBC); //Creates the geometric mesh
             }
             else if(dim == 3)
             {
@@ -942,13 +859,13 @@ int main(int argc, char *argv[]) {
             std::stringstream sout;
             sout << rootname.str();
             switch (elementType) {
-                case ETriangular:
+                case TPZMixedElasticityUtils::EElementType::ETriangular:
                     sout << "_tria";
                     break;
-                case ESquare:
+                case TPZMixedElasticityUtils::EElementType::ESquare:
                     sout << "_quad";
                     break;
-                case ETrapezoidal:
+                case TPZMixedElasticityUtils::EElementType::ETrapezoidal:
                     sout << "_trap";
                     break;
             }
@@ -958,13 +875,13 @@ int main(int argc, char *argv[]) {
             ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
             ErroOut << "(* Type of Element ";
             switch (elementType) {
-                case ETriangular:
+                case TPZMixedElasticityUtils::EElementType::ETriangular:
                     ErroOut << "triangular ";
                     break;
-                case ESquare:
+                case TPZMixedElasticityUtils::EElementType::ESquare:
                     ErroOut << "square ";
                     break;
-                case ETrapezoidal:
+                case TPZMixedElasticityUtils::EElementType::ETrapezoidal:
                     ErroOut << "trapezoidal ";
                     break;
             }
