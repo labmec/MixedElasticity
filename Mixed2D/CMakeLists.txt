@@ -43,3 +43,7 @@ target_link_libraries(MHMTest NeoPZ::pz )
 set(mainH1 main-h1.cpp)
 add_executable(ElasticityH1 ${mainH1})
 target_link_libraries(ElasticityH1 NeoPZ::pz)
+
+set(mainYotov main-Yotov.cpp ${sources} ${headers})
+add_executable(Yotov ${mainYotov})
+target_link_libraries(Yotov NeoPZ::pz)

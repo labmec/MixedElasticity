@@ -5,6 +5,7 @@
 #include "TPZCompelDiscScaled.h"
 #include "TPZMixedElasticityND.h"
 #include "pzintel.h"
+#include "TPZAnalyticSolution.h"
 
 TPZCompMesh * TPZMixedElasticityCMeshCreator::CMesh_S(TPZGeoMesh *gmesh, int pOrder) {
     //Criando malha computacional:
@@ -419,9 +420,10 @@ TPZCompMesh* TPZMixedElasticityCMeshCreator::CMesh_m(TPZGeoMesh *gmesh, int pOrd
     //    example.fProblemType = TElasticityExample1::EThiago;
     //    example.fStressState   = TElasticityExample1::EPlaneStrain;
 
-    REAL E = 0.; //* @param E elasticity modulus
-    REAL nu = 0.; //* @param nu poisson coefficient
+    REAL E = 250.; //* @param E elasticity modulus
+    REAL nu = 0.25; //* @param nu poisson coefficient
 
+    
     TElasticity2DAnalytic * analytic2D = 0;
     TElasticity3DAnalytic * analytic3D = 0;
     if(dim == 2)
@@ -429,14 +431,14 @@ TPZCompMesh* TPZMixedElasticityCMeshCreator::CMesh_m(TPZGeoMesh *gmesh, int pOrd
         analytic2D = dynamic_cast<TElasticity2DAnalytic *>(gAnalytic);
         if(!analytic2D) DebugStop();
         TPZManVector<REAL,3> x(3,0.);
-        analytic2D->Elastic(x, E, nu);
+        // analytic2D->Elastic(x, E, nu);
     }
     else if(dim == 3)
     {
         analytic3D = dynamic_cast<TElasticity3DAnalytic *>(gAnalytic);
         if(!analytic3D) DebugStop();
         TPZManVector<REAL,3> x(3,0.);
-        analytic3D->Elastic(x, E, nu);
+        // analytic3D->Elastic(x, E, nu);
     }
 
     REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
