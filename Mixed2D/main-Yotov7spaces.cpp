@@ -1254,12 +1254,16 @@ int main(int argc, char *argv[]) {
 				bool createBoundEls = true;
 				gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
 						matids, nDivs, meshType, createBoundEls);
+                std::ofstream filegvtk("GMeshInicial.vtk");
+                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
-                check.UniformRefine(1);
+                check.UniformRefine(0);
                 rootname << "Ref1_";
+                std::ofstream filegvtk("GMeshInicialRef.vtk");
+                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
             
             TPZVec<int64_t> coarseindices(gmesh->NElements());
@@ -1275,8 +1279,9 @@ int main(int argc, char *argv[]) {
             }
             coarseindices.resize(count);
             TPZMHMixedMeshControl control(gmesh);
+            std::cout << "coarse Indices = " << coarseindices <<std::endl;
             control.DefinePartitionbyCoarseIndices(coarseindices);
-
+            
             control.SetInternalPOrder(pref+1);
             control.SetSkeletonPOrder(pref+1);
 
