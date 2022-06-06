@@ -720,9 +720,9 @@ int main(int argc, char *argv[]) {
 
             //CreateCondensedElements(cmesh_m_HDiv);
             // TPZCompMeshTools::GroupElements(cmesh_m_HDiv);
-            // TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 4);
+            TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 4);
             // TPZCompMeshTools::CreatedCondensedElements(cmesh_m_HDiv,true,false);
-                TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 1, false);
+            TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 4, false);
 
 #ifdef PZDEBUG
             {
