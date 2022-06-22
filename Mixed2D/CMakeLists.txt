@@ -51,3 +51,7 @@ target_link_libraries(Yotov NeoPZ::pz)
 set(mainYotov7spaces main-Yotov7spaces.cpp ${sources} ${headers})
 add_executable(Yotov7 ${mainYotov7spaces})
 target_link_libraries(Yotov7 NeoPZ::pz)
+
+set(mainIncSolid main-incompressible-solid.cpp ${sources} ${headers})
+add_executable(IncSolid ${mainIncSolid})
+target_link_libraries(IncSolid NeoPZ::pz)

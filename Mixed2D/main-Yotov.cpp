@@ -613,6 +613,7 @@ int main(int argc, char *argv[]) {
             unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
             unsigned int stressPOrder = pref + 1; //Polynomial order of the approximation
             int stressInternalPOrder = stressPOrder; //k
+            
             if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
                 stressInternalPOrder += 1; //k+1
             }
@@ -621,6 +622,7 @@ int main(int argc, char *argv[]) {
             }
             int displacementPOrder = elementType == TPZMixedElasticityUtils::EElementType::ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
             int rotationPOrder = displacementPOrder;
+            stressInternalPOrder += 1; //k+1
             TPZGeoMesh *gmesh = 0;
             if(dim == 2)
             {

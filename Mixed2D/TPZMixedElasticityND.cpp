@@ -869,9 +869,6 @@ void TPZMixedElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>> &d
         v_2[0] = res[0];
         v_2[1] = res[1];
         if(fDimension == 3) v_2[2] = res[2];
-
-    }else{
-        std::cout << "Não pare aqui!" << std::endl;
     }
 
     // Setting the phis
@@ -1411,9 +1408,7 @@ void TPZMixedElasticityND::Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, T
     ToVoigt(sigma, SigmaV);
     TPZManVector<STATE, 3> divSigma(dim,0.);
     for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            divSigma[i] += data[0].dsol[0](i * 3 + j, j);
-        }
+        divSigma[i] = data[0].divsol[0][i];
     }
 
     TPZManVector<STATE, 3> disp(dim);
@@ -1470,9 +1465,12 @@ void TPZMixedElasticityND::Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, T
         rotation[1] = data[2].sol[0][1];
         rotationExact[1] = 0.5*(du_exact(2, 0)-du_exact(0, 2));
         rotation[2] = data[2].sol[0][2];
-        rotationExact[2] = 0.5*(du_exact(1, 2)-du_exact(2, 1));
+        rotationExact[2] = 0.5*(du_exact(2, 1)-du_exact(1, 2));
 
     }
+    // std::cout << "Rotation = "<< rotation << std::endl;
+    // std::cout << "rotationExact = "<< rotationExact << std::endl << std::endl;
+
 #ifdef PZDEBUG
     {
         TPZManVector<STATE, 9> eps_again(matdim);
@@ -1522,7 +1520,9 @@ void TPZMixedElasticityND::Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, T
     for (int idf = 0; idf < fDimension; idf++)
     {
         //L2_Error: divergent of the stress tensor (div(sigma))
+        
         errors[2] += (divSigma[idf]-divSigmaExact[idf])*(divSigma[idf]-divSigmaExact[idf]);
+        
     }
     int nrot = 1;
     if(fDimension == 3) nrot = 3;

@@ -1114,8 +1114,8 @@ int main(int argc, char *argv[]) {
     EConfig conf = EThiago;
     int initial_p = 1;
     int final_p = 1;
-    int initial_h = 2;
-    int final_h = 3;
+    int initial_h = 0;
+    int final_h = 0;
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;

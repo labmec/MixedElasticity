@@ -140,6 +140,8 @@ void ChangeInternalOrder(TPZCompMesh *cmesh, int pOrder);
  */
 TPZCompMesh *CMesh_U(TPZGeoMesh *gmesh, int pOrder);
 
+void ChangeBCClampedBeam(TPZGeoMesh *gmesh);
+
 /**
  * @brief Funcao para criar a malha computacional da rotacao
  * @note Responsavel pela criacao dos espacos de aproximacao do problema
@@ -786,7 +788,7 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
         analytic3D->Elastic(x, E, nu);
     }
 
-    REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
+     REAL fx = 0.; //* @param fx forcing function \f$ -x = fx \f$
     REAL fy = 0.; //* @param fx forcing function \f$ -x = fx \f$
     int plainStress = 0; //* @param plainstress = 1 \f$ indicates use of plainstress
     if(dim == 2)
@@ -834,62 +836,44 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
     TPZFMatrix<REAL> val1(dim, dim, 0.);
     TPZManVector<REAL,3> val2(dim, 0.);
 
-
     {
         auto * BCond1 = material->CreateBC(material, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-        BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond1);
-        //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
-        //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
     {
-        auto * BCond0 = material->CreateBC(material, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
+        auto * BCond0 = material->CreateBC(material, matBCbott, neumann, val1, val2); //Cria material que implementa a condição de contorno inferior
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond0);
-        BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
     
     {
-        auto * BCond2 = material->CreateBC(material, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
+        auto * BCond2 = material->CreateBC(material, matBCleft, neumann, val1, val2); //Cria material que implementa a condicao de contorno esquerda
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond2);
-        BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-        //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
-        //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
     {
-        auto * BCond3 = material->CreateBC(material, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+        auto * BCond3 = material->CreateBC(material, matBCright, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond3);
-        BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
     {
-        auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+        auto * BCond5 = material->CreateBC(material, -5, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond5);
-        BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
     {
-        auto * BCond6 = material->CreateBC(material, -6, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
+        val2[0]=1.;
+        auto * BCond6 = material->CreateBC(material, -6, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond6);
-        BCond6->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
     {
         auto * BCond4 = material->CreateBC(material, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond4);
-        BCond4->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
     }
-    //Ponto
-
-    //    TPZFMatrix<REAL> val3(1,1,0.), val4(1,1,0.);
-    //    val4(0,0)=0.0;
-    //
-    //    TPZMaterial * BCPoint = material->CreateBC(material, matPoint, pointtype, val3, val4); //Cria material que implementa um ponto para a pressão
-    //    cmesh->InsertMaterialObject(BCPoint); //Insere material na malha
-
+    
 }
 
 TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
@@ -1110,16 +1094,16 @@ int main(int argc, char *argv[]) {
 
 #ifdef PZ_LOG
     TPZLogger::InitializePZLOG();
-#endif 
+#endif
     EConfig conf = EThiago;
-    int initial_p = 2;
-    int final_p = 3;
-    int initial_h = 4;
-    int final_h = 4;
+    int initial_p = 1;
+    int final_p = 1;
+    int initial_h = 0;
+    int final_h = 0;
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;
-    int numthreads = 12;
+    int numthreads = 8;
 
     switch (argc) {
         case 9:
@@ -1170,10 +1154,10 @@ int main(int argc, char *argv[]) {
             else if(dim == 3)
             {
                 TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
-                elas->fE = 250.;//206.8150271873455;
-                elas->fPoisson = 0.25;//0.3040039545229857;
-                elas->fProblemType = TElasticity3DAnalytic::EYotov;
-                basename << ConfigRootname[conf] << "_EYotov";
+                elas->fE = 1.;//206.8150271873455;
+                elas->fPoisson = 0.3;//0.3040039545229857;
+                elas->fProblemType = TElasticity3DAnalytic::ELoadedBeam;
+                basename << ConfigRootname[conf] << "_LoadedBeam";
                 gAnalytic = elas;
             }
             else
@@ -1234,7 +1218,6 @@ int main(int argc, char *argv[]) {
             }
             int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
             int rotationPOrder = displacementPOrder;
-
             TPZGeoMesh *gmesh = 0;
             if(dim == 2)
             {
@@ -1246,25 +1229,22 @@ int main(int argc, char *argv[]) {
 //					gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
 //				else if (elementType == ETetraheda)
 //					gmesh = Create3DTetMesh(href);
-				TPZManVector<REAL,3> minX = {0.,0.,0.};
-				TPZManVector<REAL,3> maxX = {1.,1.,1.};
+				TPZManVector<REAL,3> minX = {-1.,0.,0.};
+				TPZManVector<REAL,3> maxX = {1.,1.,5.};
 				TPZManVector<int,5> matids = {1,-1,-1,-1,-1,-1,-1};
-				TPZManVector<int> nDivs = {nelx,nelx,nelx};
+				TPZManVector<int> nDivs = {nelx,nelx,5*nelx};
 				MMeshType meshType = MMeshType::ETetrahedral;
 				rootname << "_tetra_";
 				bool createBoundEls = true;
 				gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
 						matids, nDivs, meshType, createBoundEls);
-                std::ofstream filegvtk("GMeshInicial.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+                
             }
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
-                check.UniformRefine(0);
+                check.UniformRefine(1);
                 rootname << "Ref1_";
-                std::ofstream filegvtk("GMeshInicialRef.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
             
             TPZVec<int64_t> coarseindices(gmesh->NElements());
@@ -1280,14 +1260,10 @@ int main(int argc, char *argv[]) {
             }
             coarseindices.resize(count);
             TPZMHMixedMeshControl control(gmesh);
-            // std::cout << "coarse Indices = " << coarseindices <<std::endl;
             control.DefinePartitionbyCoarseIndices(coarseindices);
-            
-            control.SetInternalPOrder(pref+1);
-            control.SetSkeletonPOrder(pref+1);
-
             control.fMaterialIds = {1};
             control.fMaterialBCIds = {-1,-2,-3,-4,-5,-6};
+            
             if(dim == 2)
             {
                 control.SetProblemType(TPZMHMeshControl::EElasticity2D);
@@ -1295,6 +1271,9 @@ int main(int argc, char *argv[]) {
             {
                 control.SetProblemType(TPZMHMeshControl::EElasticity3D);
             }
+            ChangeBCClampedBeam(gmesh);
+            std::ofstream filegvtk("GMeshInicial.vtk");
+            TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             InsertMaterialObjects(control.CMesh());
 //            for(auto bcmatid : control.fMaterialBCIds)
 //            {
@@ -1334,16 +1313,16 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            bool optimizeBandwidth = true;
+            bool optimizeBandwidth = false;
             cmesh_m_HDiv->InitializeBlock();
             
             TPZCompMesh *cmesh = cmesh_m_HDiv.operator->();
             TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
-// #ifdef PZ_USING_MKL
+#ifdef PZ_USING_MKL
             TPZSSpStructMatrix<STATE> matskl(cmesh);
-// #else
-//             TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
-// #endif
+#else
+            TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
+#endif
             matskl.SetNumThreads(numthreads);
             an.SetStructuralMatrix(matskl);
             TPZStepSolver<STATE> step;
@@ -1400,6 +1379,7 @@ int main(int argc, char *argv[]) {
                 TPZStack<std::string> scalnames, vecnames;
                 scalnames.Push("SigmaX");
                 scalnames.Push("SigmaY");
+                scalnames.Push("SigmaZ");
                 scalnames.Push("TauXY");
 //                vecnames.Push("Flux");
                 vecnames.Push("displacement");
@@ -1531,4 +1511,31 @@ TPZGeoMesh* Create3DTetMesh(const int href) {
 	return TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
 												matids, nDivs,
 												tetmeshType, createBoundEls);
+}
+
+void ChangeBCClampedBeam(TPZGeoMesh *gmesh){
+
+    const REAL zerotol = ZeroTolerance();
+    
+    for (auto gel: gmesh->ElementVec()) {
+        if (!gel) continue;
+//        if (gel->MaterialId() != ENoflux) continue; // 2d faces on boundary only
+        if(gel->Dimension() != 2){continue;}
+        if((gel->MaterialId() != -1)){continue;}
+        TPZVec<REAL> masscent(2,0.0), xcenter(3,0.0);
+        gel->CenterPoint(gel->NSides()-1, masscent);
+        gel->X(masscent, xcenter);
+        const REAL x = xcenter[0], y = xcenter[1], z = xcenter[2];
+
+
+        if(fabs(z) < zerotol)
+                gel->SetMaterialId(-2);
+    
+        if(fabs(z-5.) < zerotol)
+                gel->SetMaterialId(-6);
+    
+        
+    }
+
+
 }
