@@ -88,6 +88,7 @@ static LoggerPtr logger(Logger::getLogger("pz.elasticity"));
 static LoggerPtr loggerconfig(Logger::getLogger("pz.hdiv.vecconfig"));
 #endif
 
+
 TPZAnalyticSolution *gAnalytic = 0;
 //------------------Elasticity Problem------------------------
 
@@ -203,10 +204,6 @@ std::string ConfigRootname[5] = {
     "MixedPlusPlus"
 };
 
-
-
-
-
 void AddMultiphysicsInterfaces(TPZCompMesh &cmesh) {
     TPZGeoMesh *gmesh = cmesh.Reference();
     std::set<int> velmatid;
@@ -313,8 +310,6 @@ TPZGeoMesh *CreateGMesh(int nelx, int nely, double hx, double hy, double x0, dou
     //ofstream bf("before.vtk");
     //TPZVTKGeoMesh::PrintGMeshVTK(gmesh, bf);
     return gmesh;
-
-
 
 }
 
@@ -1112,14 +1107,16 @@ int main(int argc, char *argv[]) {
     TPZLogger::InitializePZLOG();
 #endif 
     EConfig conf = EThiago;
-    int initial_p = 2;
+    int initial_p = 1;
     int final_p = 3;
-    int initial_h = 4;
-    int final_h = 4;
+    int initial_h = 0;
+    int final_h = 5;
+    int initial_intref = 0;
+    int final_intref = 3;
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;
-    int numthreads = 12;
+    int numthreads = 50;
 
     switch (argc) {
         case 9:
@@ -1216,24 +1213,17 @@ int main(int argc, char *argv[]) {
     //    TElasticityExample1::Sigma(x, sigma);
     //    TElasticityExample1::Force(x, force);
 
-    for (unsigned int pref = initial_p - 1; pref < final_p; ++pref) {
+    for (unsigned int pref = initial_p; pref < final_p + 1; ++pref) {
         for (unsigned int href = initial_h; href <= final_h; ++href) {
+        for (unsigned int intref = initial_intref; intref <= final_intref; ++intref) {
+            
             std::stringstream rootname;
             rootname << basename.str();
             unsigned int h_level = 1 << href;
             int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
             unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
-            unsigned int stressPOrder = pref + 1; //Polynomial order of the approximation
-            int stressInternalPOrder = stressPOrder; //k
-            if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
-                stressInternalPOrder += 1; //k+1
-            }
-            if (conf == EThiagoPlusPlus) {
-                stressInternalPOrder += 2; //k+2
-            }
-            int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
-            int rotationPOrder = displacementPOrder;
+           
 
             TPZGeoMesh *gmesh = 0;
             if(dim == 2)
@@ -1255,16 +1245,16 @@ int main(int argc, char *argv[]) {
 				bool createBoundEls = true;
 				gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
 						matids, nDivs, meshType, createBoundEls);
-                std::ofstream filegvtk("GMeshInicial.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+                // std::ofstream filegvtk("GMeshInicial.vtk");
+                // TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
-                check.UniformRefine(0);
-                rootname << "Ref1_";
-                std::ofstream filegvtk("GMeshInicialRef.vtk");
-                TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
+                check.UniformRefine(intref);
+                // rootname << "Ref1_";
+                // std::ofstream filegvtk("GMeshInicialRef.vtk");
+                // TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
             
             TPZVec<int64_t> coarseindices(gmesh->NElements());
@@ -1283,8 +1273,10 @@ int main(int argc, char *argv[]) {
             // std::cout << "coarse Indices = " << coarseindices <<std::endl;
             control.DefinePartitionbyCoarseIndices(coarseindices);
             
-            control.SetInternalPOrder(pref+1);
-            control.SetSkeletonPOrder(pref+1);
+            control.SetInternalPOrder(pref);    
+            control.SetSkeletonPOrder(pref);
+            // control.DivideSkeletonElements(1);
+            // control.SetHdivmaismaisPOrder(1);
 
             control.fMaterialIds = {1};
             control.fMaterialBCIds = {-1,-2,-3,-4,-5,-6};
@@ -1389,7 +1381,7 @@ int main(int argc, char *argv[]) {
             }
 #endif
             cmesh_m_HDiv->LoadSolutionFromMultiPhysics();
-            plotting = true;
+            plotting = false;
             if (plotting) {
                 std::string plotfile;
                 {
@@ -1444,8 +1436,11 @@ int main(int argc, char *argv[]) {
                 case ETrapezoidal:
                     sout << "_trap";
                     break;
+                default:
+                    sout << "_tetra";
+                    break;
             }
-            sout << "_" << stressPOrder << "_Error.nb";
+            // sout << "_" << stressPOrder << "_Error.nb";
             ofstream ErroOut(sout.str(), std::ios::app);
             ErroOut << "(* Type of simulation " << rootname.str() << " *)\n";
             ErroOut << "(* Number of elements " << h_level << " *)" << std::endl;
@@ -1478,19 +1473,22 @@ int main(int argc, char *argv[]) {
             ErroOut << "*)\n";
             TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
             output[0] = h_level;
-            output[1] = stressPOrder;
-            output[2] = stressInternalPOrder;
+            output[1] = pref;
+            output[2] = pref;
             output[3] = cmesh->NEquations();
-            output[4] = cmesh->Solution().Rows();
+            output[4] = cmesh_m_HDiv->Solution().Rows();
             for (int i = 0; i < Errors.size(); i++) {
                 output[5 + i] = Errors[i];
             }
-            ErroOut << "Error[[" << href + 1 << "," << pref + 1 << "]] = {" << output << "};\n";
+            ErroOut << "Error[[" << href+1 << "," << pref+1 << "," << intref+1 << "]] = {" << output << "};\n";
 
-            std::cout << "Errors = " << Errors << std::endl;
+            ofstream rprint("errors.txt",std::ios::app);
 
+            std::cout << "Errors = "<< std::scientific << std::setprecision(15)  << Errors << std::endl;
+            rprint << pref << " " << href << " " << intref << " " << cmesh->NEquations() << " " << std::scientific << std::setprecision(15)  << Errors << std::endl;
 
             an.CleanUp();
+        }
         }
     }
 
