@@ -48,9 +48,19 @@ set(mainYotov main-Yotov.cpp ${sources} ${headers})
 add_executable(Yotov ${mainYotov})
 target_link_libraries(Yotov NeoPZ::pz)
 
+
+set(mainHPC4E5Spaces main-hpc4e-5spaces.cpp ${sources} ${headers})
+add_executable(HPC4E5Spaces ${mainHPC4E5Spaces})
+target_link_libraries(HPC4E5Spaces NeoPZ::pz)
+
+
 set(mainYotov7spaces main-Yotov7spaces.cpp ${sources} ${headers})
 add_executable(Yotov7 ${mainYotov7spaces})
 target_link_libraries(Yotov7 NeoPZ::pz)
+
+set(mainHPC4E main-hpc4e.cpp ${sources} ${headers})
+add_executable(HPC4E ${mainHPC4E})
+target_link_libraries(HPC4E NeoPZ::pz)
 
 set(mainIncSolid main-incompressible-solid.cpp ${sources} ${headers})
 add_executable(IncSolid ${mainIncSolid})
