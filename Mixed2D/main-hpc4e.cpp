@@ -893,6 +893,7 @@ int main(int argc, char *argv[]) {
     
     TPZGeoMesh *gmesh = 0;
     std::cout << "\n----------- Creating gmesh -----------" << std::endl;
+    const int nrefint = 1;
     if(dim == 2)
     {
         DebugStop();
@@ -902,7 +903,8 @@ int main(int argc, char *argv[]) {
         TPZManVector<REAL,3> minX = {0.,0.,0.};
         TPZManVector<REAL,3> maxX = {10000.,10000.,5000.};
         TPZManVector<int,5> matids = {1,matBCbott,matBCleft,matBCfront,matBCright,matBCback,matBCtop};
-        TPZManVector<int> nDivs = {(Globnx-1)/2,(Globny-1)/2,(Globnz-1)/2};
+        
+        TPZManVector<int> nDivs = {(Globnx-1)/(nrefint*2),(Globny-1)/(nrefint*2),(Globnz-1)/(nrefint*2)};
         MMeshType meshType = MMeshType::ETetrahedral;
         rootname << "_tetra_";
         bool createBoundEls = true;
@@ -915,11 +917,12 @@ int main(int argc, char *argv[]) {
     const bool isRefine = true;
     if(isRefine){
         TPZCheckGeom check(gmesh);
-        check.UniformRefine(1);
+        check.UniformRefine(nrefint);
         rootname << "Ref1_";
         std::ofstream filegvtk("GMeshInicialRef.vtk");
         TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
     }
+    std::cout << "Number of geo elements in mesh = " << gmesh->NElements() << std::endl;
     
     TPZVec<int64_t> coarseindices(gmesh->NElements());
     int64_t count = 0;
