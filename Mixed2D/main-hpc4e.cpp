@@ -783,7 +783,7 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
     }
     REAL tempE = 0., tempNu = 0.;;
     const std::string foldername = "../data/" + to_string(nx-1);
-    std::string basee = foldername + "/e_", basenu = foldername + "/nu_";    
+    std::string basee = foldername + "/e_", basenu = foldername + "/nu_";
     for (int iy = 0; iy < ny; iy++) {
         std::string ename = basee + to_string(iy+1) + ".txt";
         std::string nuname = basenu + to_string(iy+1) + ".txt";
@@ -1183,26 +1183,8 @@ int main(int argc, char *argv[]) {
     bool plotting = false;
 //    EElementType elementType = ESquare;
 	EElementType elementType = ETetraheda;
-    int numthreads = 12;
+    int numthreads = 64;
 
-    switch (argc) {
-        case 9:
-            numthreads = atoi(argv[8]);
-        case 8:
-            elementType = EElementType(atoi(argv[7]));
-        case 7:
-            plotting = atoi(argv[6]);
-        case 6:
-            final_h = atoi(argv[5]);
-        case 5:
-            initial_h = atoi(argv[4]);
-        case 4:
-            final_p = atoi(argv[3]);
-        case 3:
-            initial_p = atoi(argv[2]);
-        case 2:
-            conf = EConfig(atoi(argv[1]));
-    };
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
 
@@ -1288,16 +1270,6 @@ int main(int argc, char *argv[]) {
             int nelx = h_level, nely = h_level; //Number of elements in x and y directions
             std::cout << "********* " << "Number of h refinements: " << href << " (" << nelx << "x" << nely << " elements). p order: " << pref + 1 << ". *********" << std::endl;
             unsigned int nx = nelx + 1, ny = nely + 1; //Number of nodes in x and y directions
-            unsigned int stressPOrder = pref + 1; //Polynomial order of the approximation
-            int stressInternalPOrder = stressPOrder; //k
-            if (conf == EThiagoPlus || conf == EAxiSymmetricPlus) {
-                stressInternalPOrder += 1; //k+1
-            }
-            if (conf == EThiagoPlusPlus) {
-                stressInternalPOrder += 2; //k+2
-            }
-            int displacementPOrder = elementType == ETriangular ? stressInternalPOrder - 1 : stressInternalPOrder;
-            int rotationPOrder = displacementPOrder;
 
             TPZGeoMesh *gmesh = 0;
             if(dim == 2)
@@ -1306,19 +1278,15 @@ int main(int argc, char *argv[]) {
             }
             else if(dim == 3)
             {
-//				if (elementType == ESquare)
-//					gmesh = CreateGMesh3D(nelx, nely, hx, hy, x0, y0, elementType); //Creates the geometric mesh
-//				else if (elementType == ETetraheda)
-//					gmesh = Create3DTetMesh(href);
-				TPZManVector<REAL,3> minX = {0.,0.,0.};
-				TPZManVector<REAL,3> maxX = {10000.,10000.,5000.};
-				TPZManVector<int,5> matids = {1,matBCbott,matBCleft,matBCfront,matBCright,matBCback,matBCtop};
-				TPZManVector<int> nDivs = {32,32,16};
-				MMeshType meshType = MMeshType::ETetrahedral;
-				rootname << "_tetra_";
-				bool createBoundEls = true;
-				gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
-						matids, nDivs, meshType, createBoundEls);
+                TPZManVector<REAL,3> minX = {0.,0.,0.};
+                TPZManVector<REAL,3> maxX = {10000.,10000.,5000.};
+                TPZManVector<int,5> matids = {1,matBCbott,matBCleft,matBCfront,matBCright,matBCback,matBCtop};
+                TPZManVector<int> nDivs = {32,32,16};
+                MMeshType meshType = MMeshType::ETetrahedral;
+                rootname << "_tetra_";
+                bool createBoundEls = true;
+                gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
+                                                             matids, nDivs, meshType, createBoundEls);
                 std::ofstream filegvtk("GMeshInicial.vtk");
                 TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
@@ -1347,8 +1315,8 @@ int main(int argc, char *argv[]) {
             // std::cout << "coarse Indices = " << coarseindices <<std::endl;
             control.DefinePartitionbyCoarseIndices(coarseindices);
             
-            control.SetInternalPOrder(pref+1);
-            control.SetSkeletonPOrder(pref+1);
+            control.SetInternalPOrder(1);
+            control.SetSkeletonPOrder(1);
 
             control.fMaterialIds = {1};
             control.fMaterialBCIds = {-1,-2,-3,-4,-5,-6};
@@ -1365,7 +1333,7 @@ int main(int argc, char *argv[]) {
 //                control.CMesh()->MaterialVec().erase(bcmatid);
 //            }
             bool substruct = true;
-            control.DivideSkeletonElements(1);
+//            control.DivideSkeletonElements(1);
             control.BuildComputationalMesh(substruct);            
             
             rootname << "_Sub";
@@ -1470,7 +1438,7 @@ int main(int argc, char *argv[]) {
                 
                 constexpr int vtkRes{0}; //resolucao do vtk
                 auto vtk = TPZVTKGenerator(cmesh_m_HDiv, scalnames, plotfile, vtkRes, 3);
-                vtk.SetNThreads(8);
+                vtk.SetNThreads(64);
                 vtk.Do();
 #else
                 cout << "\n------------------ Plotting VTK ------------------" << endl;
