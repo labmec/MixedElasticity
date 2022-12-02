@@ -772,17 +772,18 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
 {
     // ----------------------- Getting E,nu data --------------------------
     // --------------------------------------------------------------------
-    constexpr int nx{17};
-    constexpr int ny{17};
-    constexpr int nz{9};
-    constexpr REAL partsize{625};
+    constexpr int nx{65};
+    constexpr int ny{65};
+    constexpr int nz{33};
+    constexpr REAL partsize{156.25};
     TPZManVector<TPZFMatrix<STATE>,ny> edata(ny), nudata(ny);
     for (int iy = 0; iy < ny; iy++) {
         edata[iy].Resize(nz, nx);
         nudata[iy].Resize(nz, nx);
     }
     REAL tempE = 0., tempNu = 0.;;
-    std::string basee = "../mydata/e_", basenu = "../mydata/nu_";
+    const std::string foldername = "../data/" + to_string(nx-1);
+    std::string basee = foldername + "/e_", basenu = foldername + "/nu_";    
     for (int iy = 0; iy < ny; iy++) {
         std::string ename = basee + to_string(iy+1) + ".txt";
         std::string nuname = basenu + to_string(iy+1) + ".txt";
@@ -1312,7 +1313,7 @@ int main(int argc, char *argv[]) {
 				TPZManVector<REAL,3> minX = {0.,0.,0.};
 				TPZManVector<REAL,3> maxX = {10000.,10000.,5000.};
 				TPZManVector<int,5> matids = {1,matBCbott,matBCleft,matBCfront,matBCright,matBCback,matBCtop};
-				TPZManVector<int> nDivs = {4,4,2};
+				TPZManVector<int> nDivs = {32,32,16};
 				MMeshType meshType = MMeshType::ETetrahedral;
 				rootname << "_tetra_";
 				bool createBoundEls = true;
@@ -1324,7 +1325,7 @@ int main(int argc, char *argv[]) {
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
-                check.UniformRefine(2);
+                check.UniformRefine(1);
                 rootname << "Ref1_";
                 std::ofstream filegvtk("GMeshInicialRef.vtk");
                 TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
