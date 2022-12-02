@@ -95,11 +95,11 @@ static LoggerPtr loggerconfig(Logger::getLogger("pz.hdiv.vecconfig"));
 #endif
 
 // -------------------- Global Variables --------------------
-//constexpr int Globnx{65}, Globny{65}, Globnz{33};
-//constexpr REAL Globpartsize{156.25};
+constexpr int Globnx{65}, Globny{65}, Globnz{33};
+constexpr REAL Globpartsize{156.25};
 
-constexpr int Globnx{17}, Globny{17}, Globnz{9};
-constexpr REAL Globpartsize{625};
+//constexpr int Globnx{17}, Globny{17}, Globnz{9};
+//constexpr REAL Globpartsize{625};
 
 //------------------Elasticity Problem------------------------
 
@@ -883,7 +883,7 @@ int main(int argc, char *argv[]) {
 #endif 
     bool plotting = false;
 	EElementType elementType = ETetraheda;
-    int numthreads = 16;
+    int numthreads = 64;
 
     std::stringstream basename;
     basename << "_EYotov";
