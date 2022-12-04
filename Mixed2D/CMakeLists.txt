@@ -11,6 +11,11 @@ set(sources
     TPZMixedElasticityUtils.cpp)
 file(GLOB headers *.h)
 
+# MACRO for path to source of project
+set(SOURCEDIRECTORY ${PROJECT_SOURCE_DIR})
+set (CONFIG_H "${CMAKE_CURRENT_SOURCE_DIR}/mixelas_config.h")
+configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/mixelas_config.h.in" ${CONFIG_H})
+
 
 set(Mymain main.cpp )
 add_executable(MixedElasticitySquare ${Mymain} ${sources})

@@ -20,8 +20,16 @@ IF(APPLE)
    FIND_LIBRARY(ACCELERATE_LIB Accelerate)
    link_libraries(${ACCELERATE_LIB})
 #   SET(OperatingSystem "Mac OS X")
-ENDIF(APPLE)
 
+   # Making pz "seeable" in Xcode
+   file(GLOB_RECURSE PZ_SRC
+        "../neopz/*.h"
+        "../neopz/*.cpp"
+        "../NeoPzDevelop/*.h"
+        "../NeoPzDevelop/*.cpp"
+   )
+   add_custom_target( GlobalFiles SOURCES ${PZ_SRC})
+ENDIF(APPLE)
 
 add_subdirectory(Mixed2D)
 

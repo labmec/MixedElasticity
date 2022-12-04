@@ -80,6 +80,7 @@
 
 #include "TPZMultiphysicsCompMesh.h"
 
+#include "mixelas_config.h"
 
 //#define USENEWVTK
 #ifdef USENEWVTK
@@ -95,11 +96,14 @@ static LoggerPtr loggerconfig(Logger::getLogger("pz.hdiv.vecconfig"));
 #endif
 
 // -------------------- Global Variables --------------------
-constexpr int Globnx{65}, Globny{65}, Globnz{33};
-constexpr REAL Globpartsize{156.25};
+//constexpr int Globnx{65}, Globny{65}, Globnz{33};
+//constexpr REAL Globpartsize{156.25};
 
 //constexpr int Globnx{17}, Globny{17}, Globnz{9};
 //constexpr REAL Globpartsize{625};
+
+constexpr int Globnx{9}, Globny{9}, Globnz{5};
+constexpr REAL Globpartsize{1250.};
 
 //------------------Elasticity Problem------------------------
 
@@ -708,6 +712,7 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
 
 void InsertMaterialObjects(TPZCompMesh &cmeshref)
 {
+    std::string sourcepath(SOURCEDIR);
     // ----------------------- Getting E,nu data --------------------------
     // --------------------------------------------------------------------
     TPZManVector<TPZFMatrix<STATE>,Globny> edata(Globny), nudata(Globny);
@@ -716,7 +721,7 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
         nudata[iy].Resize(Globnz, Globnx);
     }
     REAL tempE = 0., tempNu = 0.;;
-    const std::string foldername = "../data/" + to_string(Globnx-1);
+    const std::string foldername = sourcepath + "data/" + to_string(Globnx-1);
     std::string basee = foldername + "/e_", basenu = foldername + "/nu_";
     for (int iy = 0; iy < Globny; iy++) {
         std::string ename = basee + to_string(iy+1) + ".txt";
