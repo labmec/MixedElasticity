@@ -1108,10 +1108,10 @@ int main(int argc, char *argv[]) {
 #endif 
     EConfig conf = EThiago;
     int initial_p = 1;
-    int final_p = 3;
+    int final_p = 2;
     int initial_h = 0;
-    int final_h = 5;
-    int initial_intref = 0;
+    int final_h = 0;
+    int initial_intref = 3;
     int final_intref = 3;
     bool plotting = false;
 //    EElementType elementType = ESquare;
@@ -1251,7 +1251,7 @@ int main(int argc, char *argv[]) {
             TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
-                check.UniformRefine(intref);
+                check.UniformRefine(intref+1);
                 // rootname << "Ref1_";
                 // std::ofstream filegvtk("GMeshInicialRef.vtk");
                 // TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
@@ -1273,9 +1273,10 @@ int main(int argc, char *argv[]) {
             // std::cout << "coarse Indices = " << coarseindices <<std::endl;
             control.DefinePartitionbyCoarseIndices(coarseindices);
             
-            control.SetInternalPOrder(pref);    
+                
             control.SetSkeletonPOrder(pref);
-            // control.DivideSkeletonElements(1);
+            control.SetInternalPOrder(pref);
+            control.DivideSkeletonElements(intref);
             // control.SetHdivmaismaisPOrder(1);
 
             control.fMaterialIds = {1};
@@ -1381,7 +1382,7 @@ int main(int argc, char *argv[]) {
             }
 #endif
             cmesh_m_HDiv->LoadSolutionFromMultiPhysics();
-            plotting = false;
+            plotting = true;
             if (plotting) {
                 std::string plotfile;
                 {
