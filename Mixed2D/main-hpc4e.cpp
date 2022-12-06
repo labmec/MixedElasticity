@@ -96,14 +96,14 @@ static LoggerPtr loggerconfig(Logger::getLogger("pz.hdiv.vecconfig"));
 #endif
 
 // -------------------- Global Variables --------------------
-//constexpr int Globnx{65}, Globny{65}, Globnz{33};
-//constexpr REAL Globpartsize{156.25};
+constexpr int Globnx{65}, Globny{65}, Globnz{33};
+constexpr REAL Globpartsize{156.25};
 
 //constexpr int Globnx{17}, Globny{17}, Globnz{9};
 //constexpr REAL Globpartsize{625};
 
-constexpr int Globnx{9}, Globny{9}, Globnz{5};
-constexpr REAL Globpartsize{1250.};
+//constexpr int Globnx{9}, Globny{9}, Globnz{5};
+//constexpr REAL Globpartsize{1250.};
 
 //------------------Elasticity Problem------------------------
 
@@ -734,6 +734,8 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
                 inNu >> tempNu;
                 edata[iy](iz,ix) = tempE;
                 nudata[iy](iz,ix) = tempNu;
+//                edata[iy](iz,ix) = 2.e7;
+//                nudata[iy](iz,ix) = 0.2;
             }
         }
     }
@@ -789,7 +791,7 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
     TPZManVector<REAL,3> val2(dim, 0.);
     {
         TPZManVector<REAL,3> val2here(dim, 0.);
-        val2here[2] = 0.;
+//        val2here[2] = -1.;
         auto * BCond1 = material->CreateBC(material, matBCtop, neumann, val1, val2here); //Cria material que implementa a condicao de contorno superior
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond1);
         cmesh->InsertMaterialObject(bc); //Insere material na malha
@@ -898,7 +900,8 @@ int main(int argc, char *argv[]) {
     
     TPZGeoMesh *gmesh = 0;
     std::cout << "\n----------- Creating gmesh -----------" << std::endl;
-    const int nrefint = 1;
+    const int nrefint = 3;
+    const int division = nrefint == 0 ? 1 : pow(2,nrefint);
     if(dim == 2)
     {
         DebugStop();
@@ -909,17 +912,16 @@ int main(int argc, char *argv[]) {
         TPZManVector<REAL,3> maxX = {10000.,10000.,5000.};
         TPZManVector<int,5> matids = {1,matBCbott,matBCleft,matBCfront,matBCright,matBCback,matBCtop};
         
-        TPZManVector<int> nDivs = {(Globnx-1)/(nrefint*2),(Globny-1)/(nrefint*2),(Globnz-1)/(nrefint*2)};
+        TPZManVector<int> nDivs = {(Globnx-1)/division, (Globny-1)/division, (Globnz-1)/division};
         MMeshType meshType = MMeshType::ETetrahedral;
         rootname << "_tetra_";
         bool createBoundEls = true;
-        gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX,
-                                                     matids, nDivs, meshType, createBoundEls);
+        gmesh = TPZGeoMeshTools::CreateGeoMeshOnGrid(dim, minX, maxX, matids, nDivs, meshType, createBoundEls);
         std::ofstream filegvtk("GMeshInicial.vtk");
         TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
     }
     TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
-    const bool isRefine = true;
+    const bool isRefine = nrefint > 0;
     if(isRefine){
         TPZCheckGeom check(gmesh);
         check.UniformRefine(nrefint);
@@ -951,27 +953,25 @@ int main(int argc, char *argv[]) {
     
     control.fMaterialIds = {1};
     control.fMaterialBCIds = {-1,-2,-3,-4,-5,-6};
-    if(dim == 2)
-    {
+    if(dim == 2) {
         DebugStop();
-    } else if(dim == 3)
-    {
+    } else if(dim == 3) {
         control.SetProblemType(TPZMHMeshControl::EElasticity3D);
     }
     InsertMaterialObjects(control.CMesh());
-    //            for(auto bcmatid : control.fMaterialBCIds)
-    //            {
-    //                control.CMesh()->MaterialVec().erase(bcmatid);
-    //            }
+//    for(auto bcmatid : control.fMaterialBCIds){
+//        control.CMesh()->MaterialVec().erase(bcmatid);
+//    }
     bool substruct = true;
-    //            control.DivideSkeletonElements(1);
+    control.DivideSkeletonElements(nrefint);
     
     std::cout << "\n----------- Creating computational mesh -----------" << std::endl;
     control.BuildComputationalMesh(substruct);
     
+    
     rootname << "_Sub";
     cmesh_m_HDiv = control.CMesh();
-    
+        
 #ifdef PZDEBUG
     {
         std::ofstream fileg("MalhaGeo.txt"); //Prints the geometric mesh in txt format
@@ -1002,6 +1002,18 @@ int main(int argc, char *argv[]) {
     cmesh_m_HDiv->InitializeBlock();
     
     TPZCompMesh *cmesh = cmesh_m_HDiv.operator->();
+    
+//    TPZVec<TPZCompMesh*>& meshvec = cmesh_m_HDiv->MeshVector();
+//    for(int i = 0 ; i < meshvec.size() ; i++) {
+//        std::string str = "atomic_mesh_" + std::to_string(i) + ".txt";
+//        std::ofstream out(str);
+//        meshvec[i]->Print(out);
+//    }
+//    std::string str = "multiphysics_mesh.txt";
+//    std::ofstream out(str);
+//    cmesh_m_HDiv->Print(out);
+    
+    
     TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
                                                     // #ifdef PZ_USING_MKL
     TPZSSpStructMatrix<STATE> matskl(cmesh);
@@ -1065,6 +1077,7 @@ int main(int argc, char *argv[]) {
         scalnames.Push("Displacement");
         scalnames.Push("SigmaX");
         scalnames.Push("SigmaY");
+        scalnames.Push("SigmaZ");
         scalnames.Push("TauXY");
         scalnames.Push("TauXY");
         
@@ -1083,6 +1096,7 @@ int main(int argc, char *argv[]) {
         TPZStack<std::string> scalnames, vecnames;
         scalnames.Push("SigmaX");
         scalnames.Push("SigmaY");
+        scalnames.Push("SigmaZ");
         scalnames.Push("TauXY");
         scalnames.Push("TauXY");
         scalnames.Push("Young_Modulus");
