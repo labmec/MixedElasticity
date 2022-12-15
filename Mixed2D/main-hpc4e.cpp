@@ -96,8 +96,11 @@ static LoggerPtr loggerconfig(Logger::getLogger("pz.hdiv.vecconfig"));
 #endif
 
 // -------------------- Global Variables --------------------
-constexpr int Globnx{65}, Globny{65}, Globnz{33};
-constexpr REAL Globpartsize{156.25};
+//constexpr int Globnx{65}, Globny{65}, Globnz{33};
+//constexpr REAL Globpartsize{156.25};
+
+constexpr int Globnx{33}, Globny{33}, Globnz{17};
+constexpr REAL Globpartsize{312.5};
 
 //constexpr int Globnx{17}, Globny{17}, Globnz{9};
 //constexpr REAL Globpartsize{625};
@@ -900,7 +903,7 @@ int main(int argc, char *argv[]) {
     
     TPZGeoMesh *gmesh = 0;
     std::cout << "\n----------- Creating gmesh -----------" << std::endl;
-    const int nrefint = 3;
+    const int nrefint = 2;
     const int division = nrefint == 0 ? 1 : pow(2,nrefint);
     if(dim == 2)
     {
