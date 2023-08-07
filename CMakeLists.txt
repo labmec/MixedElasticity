@@ -32,6 +32,7 @@ IF(APPLE)
 ENDIF(APPLE)
 
 add_subdirectory(Mixed2D)
+add_subdirectory(MHM-Elas-3D)
 
 #Enabling nightly tests
 ENABLE_TESTING()

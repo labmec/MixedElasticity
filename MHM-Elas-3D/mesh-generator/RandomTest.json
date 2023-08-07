@@ -1,0 +1,53 @@
+{
+    "MeshName": "../Meshes/HolesEverywhere",
+    "CreateMsh": false,
+    "HdivType": 1,
+    "VelpOrder": 1,
+    "TracpOrder": 0,
+    "Dim": 2,
+    "Resolution": 0,
+    "StaticCondensation": true,
+    "isAxisymmetric": 0,
+    "Domain": [
+        {
+            "name": "Stokes_Domain",
+            "matID": 1,
+            "viscosity": 1
+        }
+    ],
+    "NormalBoundary": [
+        {
+            "name": "NoPenetration",
+            "type": 0,
+            "value": 0,
+            "matID": 2
+        },
+        {
+            "name": "PressureIn",
+            "type": 2,
+            "value": -10,
+            "matID": 3
+        },
+        {
+            "name": "PressureOut",
+            "type": 2,
+            "value": 0,
+            "matID": 4
+        }
+    ],
+    "TangentialBoundary": [
+        {
+            "name": "NoSlip",
+            "type": 1,
+            "value": 0,
+            "matID": 5
+        }
+    ],
+    "AxisymmetryDomain": [],
+    "AxisymmetryBoundary": [],
+    "LambdaID": 10,
+    "InterfaceID": 20,
+    "AxiLambdaID": 30,
+    "AxiInterfaceID": 40,
+    "FluxInterfaceID": 50
+}
