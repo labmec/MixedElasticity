@@ -1,0 +1,257 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 13.2' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      8660,        249]
+NotebookOptionsPosition[      7697,        222]
+NotebookOutlinePosition[      8089,        238]
+CellTagsIndexPosition[      8046,        235]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell["MHM Voronoi Mesh Generator", "Title",
+ CellChangeTimes->{{3.900428460249764*^9, 
+  3.900428469376032*^9}},ExpressionUUID->"fd015829-b682-4f2c-9ae2-\
+af0336f4e46c"],
+
+Cell[CellGroupData[{
+
+Cell["\<\
+This script generates a random Voronoi mesh then exports the nodes and \
+connectivity for the elements.\
+\>", "Subsection",
+ CellChangeTimes->{{3.900428471880013*^9, 
+  3.900428526241974*^9}},ExpressionUUID->"965d5c8b-85e4-4658-b1c9-\
+cb57f5f44a4a"],
+
+Cell[CellGroupData[{
+
+Cell["Generating Voronoi mesh", "Subsubsection",
+ CellChangeTimes->{{3.900428625852886*^9, 
+  3.900428629347899*^9}},ExpressionUUID->"28c8fd5f-1c85-4f72-90c0-\
+122ac08ec66d"],
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"np", "=", "3"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"intv", "=", 
+   RowBox[{"np", "+", "1"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"randval", "=", 
+   RowBox[{"intv", " ", "4"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"pts", "=", 
+   RowBox[{"Flatten", "[", 
+    RowBox[{
+     RowBox[{"Table", "[", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{
+         RowBox[{
+          RowBox[{"i", "/", "intv"}], "+", 
+          RowBox[{"RandomReal", "[", 
+           RowBox[{"{", 
+            RowBox[{
+             RowBox[{
+              RowBox[{"-", "1"}], "/", "randval"}], ",", 
+             RowBox[{"1", "/", "randval"}]}], "}"}], "]"}]}], ",", 
+         RowBox[{
+          RowBox[{"j", "/", "intv"}], "+", 
+          RowBox[{"RandomReal", "[", 
+           RowBox[{"{", 
+            RowBox[{
+             RowBox[{
+              RowBox[{"-", "1"}], "/", "randval"}], ",", 
+             RowBox[{"1", "/", "randval"}]}], "}"}], "]"}]}], ",", 
+         RowBox[{
+          RowBox[{"k", "/", "intv"}], "+", 
+          RowBox[{"RandomReal", "[", 
+           RowBox[{"{", 
+            RowBox[{
+             RowBox[{
+              RowBox[{"-", "1"}], "/", "randval"}], ",", 
+             RowBox[{"1", "/", "randval"}]}], "}"}], "]"}]}]}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"i", ",", "np"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"j", ",", "np"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"k", ",", "np"}], "}"}]}], "]"}], ",", "2"}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"ListPointPlot3D", "[", "pts", "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"vm", "=", 
+   RowBox[{"VoronoiMesh", "[", 
+    RowBox[{"pts", ",", 
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{"0", ",", "1"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"0", ",", "1"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"0", ",", "1"}], "}"}]}], "}"}], ",", 
+     RowBox[{"PlotTheme", "->", "\"\<Lines\>\""}]}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"a", "=", 
+   RowBox[{"MeshCoordinates", "[", "vm", "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"ListPointPlot3D", "[", "a", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"Export", "[", 
+   RowBox[{"\"\<Celldef.txt\>\"", ",", "a"}], "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"nodes", "=", 
+   RowBox[{"ExportString", "[", 
+    RowBox[{"a", ",", "\"\<PythonExpression\>\""}], "]"}]}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"mp", "=", 
+   RowBox[{"MeshPrimitives", "[", 
+    RowBox[{"vm", ",", "3"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"b", "=", 
+   RowBox[{"MeshCells", "[", 
+    RowBox[{"vm", ",", "2"}], "]"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"connectivity", "=", 
+   RowBox[{"ExportString", "[", 
+    RowBox[{
+     RowBox[{"b", "[", 
+      RowBox[{"[", 
+       RowBox[{";;", ",", 
+        RowBox[{"-", "1"}]}], "]"}], "]"}], ",", "\"\<PythonExpression\>\""}],
+     "]"}]}], ";"}]}], "Input",
+ CellChangeTimes->{{3.896782737601755*^9, 3.896782855684429*^9}, {
+   3.8967829282024717`*^9, 3.896782931778401*^9}, {3.896782974585806*^9, 
+   3.8967829941943483`*^9}, {3.896783165308435*^9, 3.896783217294331*^9}, {
+   3.896783443978475*^9, 3.8967834576340837`*^9}, {3.896783655645091*^9, 
+   3.896783656289296*^9}, {3.8967838209893312`*^9, 3.896783827501252*^9}, {
+   3.8967839856908693`*^9, 3.896784008932*^9}, 3.89929819181168*^9, {
+   3.8992983504762583`*^9, 3.899298367171192*^9}, {3.899298524417111*^9, 
+   3.89929858454823*^9}, {3.899299699414781*^9, 3.899299809344385*^9}, {
+   3.899299857783721*^9, 3.899299952572628*^9}, {3.899300019508813*^9, 
+   3.899300028349558*^9}, {3.899300070450757*^9, 3.899300083717536*^9}, 
+   3.900059088606365*^9, {3.900075229923276*^9, 3.900075255633951*^9}, 
+   3.900075338786834*^9, {3.9000755232538652`*^9, 3.900075530612648*^9}, {
+   3.90007570100525*^9, 3.900075708348963*^9}, {3.900081431093342*^9, 
+   3.900081432064632*^9}, {3.900081565872775*^9, 3.900081571465255*^9}, {
+   3.900081709046623*^9, 3.9000817204571533`*^9}, {3.90008364670963*^9, 
+   3.9000836569437943`*^9}, 3.900083699226305*^9, {3.9000837462024097`*^9, 
+   3.900083801436516*^9}, {3.900083843074486*^9, 3.900083850646905*^9}, 
+   3.900146155411652*^9, {3.900427771324843*^9, 3.9004277714417267`*^9}, {
+   3.900428536226872*^9, 3.900428566548916*^9}, {3.900428635087022*^9, 
+   3.900428642837047*^9}},
+ CellLabel->"In[47]:=",ExpressionUUID->"b6c13782-6611-45fe-9fbd-24ca8b8132b3"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell["Exporting file", "Subsubsection",
+ CellChangeTimes->{{3.900428645028627*^9, 
+  3.900428646868354*^9}},ExpressionUUID->"36711a7f-5884-43ea-8788-\
+b7f8ab28f664"],
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"SetDirectory", "[", 
+   RowBox[{"NotebookDirectory", "[", "]"}], "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"fileName", "=", "\"\<MHMesh1.py\>\""}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"Close", "[", "fileName", "]"}], "//", "Quiet"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{
+   RowBox[{"DeleteFile", "[", "fileName", "]"}], "//", "Quiet"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"If", "[", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"FileExistsQ", "[", "fileName", "]"}], "\[Equal]", "False"}], 
+    ",", "\[IndentingNewLine]", 
+    RowBox[{"s", "=", 
+     RowBox[{"OpenWrite", "[", "fileName", "]"}]}], ",", 
+    "\[IndentingNewLine]", 
+    RowBox[{
+     RowBox[{"s", "=", 
+      RowBox[{"OpenAppend", "[", "fileName", "]"}]}], ";"}]}], 
+   "\[IndentingNewLine]", "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"WriteString", "[", 
+   RowBox[{"s", ",", "\"\<points = \>\""}], "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"WriteString", "[", 
+   RowBox[{"s", ",", "nodes"}], "]"}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"WriteString", "[", 
+   RowBox[{"s", ",", "\"\<\\npolylist = \>\""}], "]"}], 
+  ";"}], "\[IndentingNewLine]", 
+ RowBox[{
+  RowBox[{"WriteString", "[", 
+   RowBox[{"s", ",", "connectivity"}], "]"}], ";"}]}], "Input",
+ CellChangeTimes->{{3.900428658965695*^9, 3.90042867948831*^9}, {
+   3.900428719408636*^9, 3.900428772964815*^9}, 
+   3.9004288495753517`*^9},ExpressionUUID->"ad4ca7d3-6b88-4887-9878-\
+9df76908c87c"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+},
+WindowSize->{1920, 946},
+WindowMargins->{{0, Automatic}, {Automatic, 0}},
+FrontEndVersion->"13.1 for Mac OS X x86 (64-bit) (June 16, 2022)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"f9522234-8a4e-4969-8185-5d49c93c8f8c"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 169, 3, 98, "Title",ExpressionUUID->"fd015829-b682-4f2c-9ae2-af0336f4e46c"],
+Cell[CellGroupData[{
+Cell[774, 29, 259, 6, 54, "Subsection",ExpressionUUID->"965d5c8b-85e4-4658-b1c9-cb57f5f44a4a"],
+Cell[CellGroupData[{
+Cell[1058, 39, 174, 3, 45, "Subsubsection",ExpressionUUID->"28c8fd5f-1c85-4f72-90c0-122ac08ec66d"],
+Cell[1235, 44, 4631, 117, 283, "Input",ExpressionUUID->"b6c13782-6611-45fe-9fbd-24ca8b8132b3"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[5903, 166, 165, 3, 45, "Subsubsection",ExpressionUUID->"36711a7f-5884-43ea-8788-b7f8ab28f664"],
+Cell[6071, 171, 1586, 46, 262, "Input",ExpressionUUID->"ad4ca7d3-6b88-4887-9878-9df76908c87c"]
+}, Open  ]]
+}, Open  ]]
+}, Open  ]]
+}
+]
+*)
+
