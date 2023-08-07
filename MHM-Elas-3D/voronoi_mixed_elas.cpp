@@ -45,9 +45,9 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh);
  @brief Reads the test mesh from gmsh
  @param[in] file_name the .msh mesh file.
  */
-template<class tshape>
-TPZGeoMesh*
-ReadMeshFromGmsh(std::string file_name);
+TPZGeoMesh* ReadMeshFromGmsh(std::string file_name);
+
+void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh);
 
 int main()
 {
@@ -65,16 +65,23 @@ int main()
   
   // Creates/import a geometric mesh
   TPZGeoMesh* gmesh = nullptr;
-  if(DIM == 2)
-    gmesh = CreateGeoMesh<pzshape::TPZShapeQuad>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
-  else
-    gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
-  // auto gmesh = ReadMeshFromGmsh<tshape>("../mesh/1tetra.msh");
+  const bool readFromGMesh = true;
+  if(readFromGMesh){
+    gmesh = ReadMeshFromGmsh("MHMesh1.msh");
+    FixBCsForHomogeneousTest(gmesh);
+  }
+  else{
+    if(DIM == 2)
+      gmesh = CreateGeoMesh<pzshape::TPZShapeQuad>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
+    else
+      gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
+  }
+  
   std::ofstream outgmesh("geomesh.vtk");
   TPZVTKGeoMesh::PrintGMeshVTK(gmesh, outgmesh);
   
   TPZHDivApproxCreator hdivCreator(gmesh);
-  hdivCreator.HdivFamily() = HDivFamily::EHDivConstant;
+  hdivCreator.HdivFamily() = HDivFamily::EHDivStandard;
   hdivCreator.ProbType() = ProblemType::EElastic;
   hdivCreator.IsRigidBodySpaces() = false;
   hdivCreator.SetDefaultOrder(pord);
@@ -116,6 +123,7 @@ int main()
   // Fixed on the left
   TPZFMatrix<STATE> val1(DIM,DIM,0.);
   TPZManVector<STATE> val2(DIM,0.);
+  val2[0] = 0.;
   TPZBndCondT<STATE> *BCond1 = matelastic->CreateBC(matelastic, EBCLeft, diri, val1, val2);
   hdivCreator.InsertMaterialObject(BCond1);
   
@@ -137,9 +145,7 @@ int main()
   
   //Create analysis environment
   TPZLinearAnalysis an(cmesh);
-  an.SetExact(gAnalytic->ExactSolution());
   
-  std::set<int> matBCAll = {EBoundary};
   //Solve problem
   SolveProblemDirect(an,cmesh);
    
@@ -162,6 +168,8 @@ int main()
     
     vtk.Do();
   }
+  
+  return 0;
 }
 
 //Create 
@@ -318,4 +326,42 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
     std::cout << "Time Solve = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count() << "[ms]" << std::endl;
 
+}
+
+TPZGeoMesh* ReadMeshFromGmsh(std::string file_name)
+{
+    //read mesh from gmsh
+    TPZGeoMesh *gmesh;
+    gmesh = new TPZGeoMesh();
+    {
+        TPZGmshReader reader;
+        // essa interface permite voce mapear os nomes dos physical groups para
+        // o matid que voce mesmo escolher
+        TPZManVector<std::map<std::string,int>,4> stringtoint(4);
+        stringtoint[3]["volume"] = EDomain;
+        stringtoint[2]["bound"] = EZeroNeu;
+
+        reader.SetDimNamePhysical(stringtoint);
+        reader.GeometricGmshMesh(file_name,gmesh,false);
+    }
+
+    return gmesh;
+}
+
+void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh){
+  const int64_t nel = gmesh->NElements();
+  for (int iel = 0; iel < nel; iel++) {
+    TPZGeoEl* gel = gmesh->Element(iel);
+    if(gel->MaterialId() != EZeroNeu) continue;
+    
+    TPZManVector<REAL,3> centqsi(2,0.),cent(3,0.);
+    gel->CenterPoint(gel->NSides()-1, centqsi);
+    gel->X(centqsi, cent);
+    if(fabs(cent[0]) < 1.e-10){
+      gel->SetMaterialId(EBCLeft);
+    }
+    if(fabs(cent[0]-1.) < 1.e-10){
+      gel->SetMaterialId(EBCRight);
+    }
+  }
 }
