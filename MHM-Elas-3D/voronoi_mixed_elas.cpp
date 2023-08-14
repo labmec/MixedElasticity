@@ -19,10 +19,11 @@
 #include "TPZVTKGeoMesh.h"
 #include "TPZLinearAnalysis.h"
 #include "TPZMultiphysicsCompMesh.h"
+#include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
 #include "pzstepsolver.h"
 
-enum EMatid  {ENone, EDomain, EBoundary, EPont, EWrap, EIntface, EPressureHyb, EBCLeft, EBCRight, EZeroNeu};
+enum EMatid  {ENone, EDomain, EBoundary, EMHM, EPont, EWrap, EIntface, EPressureHyb, EBCLeft, EBCRight, EZeroNeu};
 
 /**
  @brief Creates a geometric mesh with elements of a given type on a unit square or cube (depending on the mesh dimension).
@@ -76,10 +77,12 @@ int main()
     else
       gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
   }
-  
-  std::ofstream outgmesh("geomesh.vtk");
-  TPZVTKGeoMesh::PrintGMeshVTK(gmesh, outgmesh);
-  
+    {
+        std::ofstream outgmesh("geomesh.vtk");
+        TPZVTKGeoMesh::PrintGMeshVTK(gmesh, outgmesh);
+        std::ofstream outgmesh2("geomesh.txt");
+        gmesh->Print(outgmesh2);
+    }
   TPZHDivApproxCreator hdivCreator(gmesh);
   hdivCreator.HdivFamily() = HDivFamily::EHDivStandard;
   hdivCreator.ProbType() = ProblemType::EElastic;
@@ -133,8 +136,8 @@ int main()
   hdivCreator.InsertMaterialObject(BCond2);
 
   // zero neumann on rest
-  val2[0] = 0.;
-  TPZBndCondT<STATE> *BCond3 = matelastic->CreateBC(matelastic, EZeroNeu, neu, val1, val2);
+  val2[0] = 1.;
+  TPZBndCondT<STATE> *BCond3 = matelastic->CreateBC(matelastic, EZeroNeu, diri, val1, val2);
   hdivCreator.InsertMaterialObject(BCond3);
   
   //Multiphysics mesh
@@ -304,9 +307,9 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 {
     //sets number of threads to be used by the solver
     constexpr int nThreads{16};
-    // TPZSkylineStructMatrix<REAL> matskl(cmesh);
+    TPZSkylineStructMatrix<REAL> matskl(cmesh);
     // TPZSSpStructMatrix<STATE> matskl(cmesh);
-    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> matskl(cmesh);
+//    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> matskl(cmesh);
     an.SetStructuralMatrix(matskl);
     
     ///Setting a direct solver
@@ -339,7 +342,8 @@ TPZGeoMesh* ReadMeshFromGmsh(std::string file_name)
         // o matid que voce mesmo escolher
         TPZManVector<std::map<std::string,int>,4> stringtoint(4);
         stringtoint[3]["volume"] = EDomain;
-        stringtoint[2]["bound"] = EZeroNeu;
+//        stringtoint[2]["bound"] = EZeroNeu;
+        stringtoint[2]["internal"] = EMHM;
 
         reader.SetDimNamePhysical(stringtoint);
         reader.GeometricGmshMesh(file_name,gmesh,false);
@@ -352,16 +356,24 @@ void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh){
   const int64_t nel = gmesh->NElements();
   for (int iel = 0; iel < nel; iel++) {
     TPZGeoEl* gel = gmesh->Element(iel);
-    if(gel->MaterialId() != EZeroNeu) continue;
-    
-    TPZManVector<REAL,3> centqsi(2,0.),cent(3,0.);
-    gel->CenterPoint(gel->NSides()-1, centqsi);
-    gel->X(centqsi, cent);
-    if(fabs(cent[0]) < 1.e-10){
-      gel->SetMaterialId(EBCLeft);
-    }
-    if(fabs(cent[0]-1.) < 1.e-10){
-      gel->SetMaterialId(EBCRight);
-    }
+    if(gel->Dimension() != 3) continue;
+      int firsts = gel->FirstSide(2);
+      for( int s = firsts; s<gel->NSides()-1; s++)
+      {
+          TPZGeoElSide gelside(gel,s);
+          if(gelside.Neighbour() == gelside)
+          {
+              TPZGeoElBC gbc(gelside,EZeroNeu);
+          }
+      }
+//    TPZManVector<REAL,3> centqsi(2,0.),cent(3,0.);
+//    gel->CenterPoint(gel->NSides()-1, centqsi);
+//    gel->X(centqsi, cent);
+//    if(fabs(cent[0]) < 1.e-10){
+//      gel->SetMaterialId(EBCLeft);
+//    }
+//    if(fabs(cent[0]-1.) < 1.e-10){
+//      gel->SetMaterialId(EBCRight);
+//    }
   }
 }
