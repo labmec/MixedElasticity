@@ -56,6 +56,7 @@ int main()
   TPZLogger::InitializePZLOG();
 #endif
   
+  int nref = 2;
   const int pord = 1;
   int DIM = 3;
   TPZVec<int> nDivs;
@@ -69,7 +70,6 @@ int main()
   const bool readFromGMesh = true;
   if(readFromGMesh){
     gmesh = ReadMeshFromGmsh("MHMesh1.msh");
-    FixBCsForHomogeneousTest(gmesh);
   }
   else{
     if(DIM == 2)
@@ -77,12 +77,18 @@ int main()
     else
       gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
   }
-    {
-        std::ofstream outgmesh("geomesh.vtk");
-        TPZVTKGeoMesh::PrintGMeshVTK(gmesh, outgmesh);
-        std::ofstream outgmesh2("geomesh.txt");
-        gmesh->Print(outgmesh2);
-    }
+  if (nref) {
+    TPZCheckGeom check(gmesh);
+    check.UniformRefine(nref);
+  }
+  FixBCsForHomogeneousTest(gmesh);
+  
+  {
+    std::ofstream outgmesh("geomesh.vtk");
+    TPZVTKGeoMesh::PrintGMeshVTK(gmesh, outgmesh);
+    std::ofstream outgmesh2("geomesh.txt");
+    gmesh->Print(outgmesh2);
+  }
   TPZHDivApproxCreator hdivCreator(gmesh);
   hdivCreator.HdivFamily() = HDivFamily::EHDivStandard;
   hdivCreator.ProbType() = ProblemType::EElastic;
@@ -95,31 +101,27 @@ int main()
   
   TPZAnalyticSolution *gAnalytic = 0;
   TPZMixedElasticityND* matelastic = 0;
-  if(DIM == 2)
-  {
+  if(DIM == 2) {
     TElasticity2DAnalytic *elas = new TElasticity2DAnalytic;
     elas->gE = 1.e3;
     elas->gPoisson = 0.0;
-//    elas->fProblemType = TElasticity2DAnalytic::EThiago;
     elas->fPlaneStress = 0;
-//    gAnalytic = elas;
     matelastic = new TPZMixedElasticityND(EDomain, elas->gE, elas->gPoisson, 0, 0, elas->fPlaneStress, DIM);
     
   }
-  else if(DIM == 3)
-  {
+  else if(DIM == 3) {
     TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
-    elas->fE = 1.;//206.8150271873455;
-    elas->fPoisson = 0.0;//0.3040039545229857;
-//    elas->fProblemType = TElasticity3DAnalytic::EDispx;
-//    gAnalytic = elas;
+    elas->fE = 250.;//206.8150271873455;
+    elas->fPoisson = 0.25;//0.3040039545229857;
+    elas->fProblemType = TElasticity3DAnalytic::EYotov;
+    gAnalytic = elas;
     matelastic = new TPZMixedElasticityND(EDomain, elas->fE, elas->fPoisson, 0, 0, 0 /*planestress*/, DIM);
   }
   
   
   //Insert Materials
-//  matelastic->SetExactSol(gAnalytic->ExactSolution(),4);
-  
+  matelastic->SetExactSol(gAnalytic->ExactSolution(),4);
+  matelastic->SetForcingFunction(gAnalytic->ForceFunc(), 3);
   hdivCreator.InsertMaterialObject(matelastic);
   
   const int diri = 0, neu = 1;
@@ -138,6 +140,8 @@ int main()
   // zero neumann on rest
   val2[0] = 1.;
   TPZBndCondT<STATE> *BCond3 = matelastic->CreateBC(matelastic, EZeroNeu, diri, val1, val2);
+  BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
+    
   hdivCreator.InsertMaterialObject(BCond3);
   
   //Multiphysics mesh
@@ -148,7 +152,7 @@ int main()
   
   //Create analysis environment
   TPZLinearAnalysis an(cmesh);
-  
+    
   //Solve problem
   SolveProblemDirect(an,cmesh);
    
@@ -168,9 +172,32 @@ int main()
       "TauXY"
     };
     auto vtk = TPZVTKGenerator(cmesh, fields, plotfile, vtkRes);
+    vtk.SetNThreads(16);
     
     vtk.Do();
   }
+  
+  // -------> Calculating error
+  an.SetExact(gAnalytic->ExactSolution());
+  an.SetThreadsForError(16);
+  std::ofstream ErroOut("myerrors.txt", std::ios::app);
+  TPZMaterial *mat = cmesh->FindMaterial(EDomain);
+  TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
+  TPZManVector<REAL, 10> Errors(materr->NEvalErrors());
+  bool store_errors = false;
+  Errors.Fill(0.);
+  
+  std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
+  an.PostProcessError(Errors, store_errors, ErroOut);
+  std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
+  std::cout << "Time PostProc Error = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count()/1000. << " s" << std::endl;
+
+  std::cout << "Computed errors." << std::endl;
+  // error_sigma - error_energy - error_div_sigma - error_u - error_r - error_as - energy_norm_exact_sol
+  std::cout << "Errors = " << std::ios::fixed <<  std::setprecision(15) << Errors << std::endl;
+//  for (int i = 0; i < Errors.size(); i++) {
+//    std::cout << Errors[i] << std::endl;
+//  }
   
   return 0;
 }
@@ -307,8 +334,8 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 {
     //sets number of threads to be used by the solver
     constexpr int nThreads{16};
-    TPZSkylineStructMatrix<REAL> matskl(cmesh);
-    // TPZSSpStructMatrix<STATE> matskl(cmesh);
+//    TPZSkylineStructMatrix<REAL> matskl(cmesh);
+    TPZSSpStructMatrix<STATE> matskl(cmesh);
 //    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> matskl(cmesh);
     an.SetStructuralMatrix(matskl);
     
@@ -321,13 +348,13 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     an.Assemble();
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time Assemble = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    std::cout << "Time Assemble = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()/1000. << " s" << std::endl;
 
     ///solves the system
     std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
     an.Solve();
     std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
-    std::cout << "Time Solve = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count() << "[ms]" << std::endl;
+    std::cout << "Time Solve = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count()/1000. << " s" << std::endl;
 
 }
 
@@ -342,7 +369,7 @@ TPZGeoMesh* ReadMeshFromGmsh(std::string file_name)
         // o matid que voce mesmo escolher
         TPZManVector<std::map<std::string,int>,4> stringtoint(4);
         stringtoint[3]["volume"] = EDomain;
-//        stringtoint[2]["bound"] = EZeroNeu;
+        stringtoint[2]["bound"] = EZeroNeu;
         stringtoint[2]["internal"] = EMHM;
 
         reader.SetDimNamePhysical(stringtoint);
@@ -363,7 +390,8 @@ void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh){
           TPZGeoElSide gelside(gel,s);
           if(gelside.Neighbour() == gelside)
           {
-              TPZGeoElBC gbc(gelside,EZeroNeu);
+              DebugStop();
+//              TPZGeoElBC gbc(gelside,EZeroNeu);
           }
       }
 //    TPZManVector<REAL,3> centqsi(2,0.),cent(3,0.);
