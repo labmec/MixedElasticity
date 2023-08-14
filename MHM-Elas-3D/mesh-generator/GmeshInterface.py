@@ -5,10 +5,10 @@ from MHMesh1 import points,polylist
 import TPZStokesInputCreator as Input
 import gmsh
 
-
 gmsh.initialize()
 pointsIDs = Input.CreatePoints(points,1)
 box = gmsh.model.occ.addBox(0, 0, 0, 1, 1, 1)
+# box = gmsh.model.occ.addBox(-0.001, -0.001, -0.001, 1.001, 1.001, 1.001)
 gmsh.model.occ.synchronize()
 
 
@@ -63,11 +63,12 @@ for poly in polylist:
             facemat = facebound
         else:
             facemat = faceinternal
+            faces.append([gmsh.model.occ.add_curve_loop(taglist),facemat])
     else:
         facemat = faceinternal
+        faces.append([gmsh.model.occ.add_curve_loop(taglist),facemat])
 
-    faces.append([gmsh.model.occ.add_curve_loop(taglist),facemat])
-
+    
 facesurfacetag = []
 facebytype = dict()
 facebytype[facebound] = []
@@ -78,7 +79,7 @@ for face in faces:
     facebytype[face[1]].append(facetag)
 
 gmsh.model.occ.synchronize()
-gmsh.model.addPhysicalGroup(2,facebytype[facebound],facebound,facename[facebound])
+# gmsh.model.addPhysicalGroup(2,facebytype[facebound],facebound,facename[facebound])
 gmsh.model.addPhysicalGroup(2,facebytype[faceinternal],faceinternal,facename[faceinternal])
 
 
@@ -86,9 +87,16 @@ gmsh.model.addPhysicalGroup(2,facebytype[faceinternal],faceinternal,facename[fac
 obj = [(3,box)]
 tool = [(2,t) for t in facesurfacetag]
 _,frag  = gmsh.model.occ.fragment(obj,tool,removeObject=True,removeTool=False)
-
+gmsh.model.occ.synchronize()
 
 boxlist = [tag for _,tag in frag[0] ]
+
+boundaries = gmsh.model.getBoundary(frag[0],True,False,False)
+regionsNF = [tag for _,tag in boundaries ]
+tagnoflux = -1
+namenoflux = "bound"
+gmsh.model.add_physical_group(2, regionsNF, tagnoflux, namenoflux)
+
 
 gmsh.model.occ.synchronize()
 gmsh.model.addPhysicalGroup(3,boxlist,1,"volume")
