@@ -25,6 +25,8 @@
 
 enum EMatid  {ENone, EDomain, EBoundary, EMHM, EPont, EWrap, EIntface, EPressureHyb, EBCLeft, EBCRight, EZeroNeu};
 
+const int global_nthread = 16;
+
 /**
  @brief Creates a geometric mesh with elements of a given type on a unit square or cube (depending on the mesh dimension).
  @param[in] meshType element type to be created.
@@ -172,14 +174,14 @@ int main()
             "TauXY"
         };
         auto vtk = TPZVTKGenerator(cmesh, fields, plotfile, vtkRes);
-        vtk.SetNThreads(16);
+        vtk.SetNThreads(global_nthread);
         
         vtk.Do();
     }
     
     // -------> Calculating error
     an.SetExact(gAnalytic->ExactSolution());
-    an.SetThreadsForError(16);
+    an.SetThreadsForError(global_nthread);
     std::ofstream ErroOut("myerrors.txt", std::ios::app);
     TPZMaterial *mat = cmesh->FindMaterial(EDomain);
     TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
@@ -333,7 +335,7 @@ ReadMeshFromGmsh(std::string file_name)
 void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 {
     //sets number of threads to be used by the solver
-    constexpr int nThreads{16};
+    constexpr int nThreads{global_nthread};
     //    TPZSkylineStructMatrix<REAL> matskl(cmesh);
     TPZSSpStructMatrix<STATE> matskl(cmesh);
     //    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> matskl(cmesh);
