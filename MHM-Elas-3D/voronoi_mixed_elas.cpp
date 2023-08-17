@@ -60,13 +60,20 @@ void DivideGMesh(TPZGeoMesh *gmesh, int internaldiv, int skeletondiv);
 
 void IdentifyMHMDomain(TPZGeoMesh *gmesh, TPZVec<int> &domain);
 
-int main()
+int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
     TPZLogger::InitializePZLOG();
 #endif
     
-    std::string meshname = "MHMesh_np2.msh";
+    std::string meshname;
+    if(argc > 1){
+        meshname = "MHMesh_np" + std::string(argv[1]) + ".msh";
+    }
+    else{
+        meshname = "MHMesh_np2.msh";
+    }
+    
     int nrefinternal = 1;
     int nrefskel = 0;
     const int pord = 1;
@@ -177,6 +184,7 @@ int main()
     
     
     // -------> Calculating error
+    std::cout << "------- Starting PostProc Error -------" << std::endl;
     an.SetExact(gAnalytic->ExactSolution());
     an.SetThreadsForError(global_nthread);
     std::ofstream ErroOut("myerrors.txt", std::ios::app);
@@ -365,7 +373,7 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 #endif
     
     matskl.SetNumThreads(nThreads);
-    an.SetStructuralMatrix(matskl);    
+    an.SetStructuralMatrix(matskl);
     
     ///Setting a direct solver
     TPZStepSolver<STATE> step;
