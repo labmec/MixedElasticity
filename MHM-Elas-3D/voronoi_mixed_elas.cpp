@@ -57,7 +57,7 @@ int main()
 #ifdef PZ_LOG
     TPZLogger::InitializePZLOG();
 #endif
-    
+        
     int nref = 0;
     const int pord = 1;
     int DIM = 3;
@@ -104,12 +104,7 @@ int main()
     TPZAnalyticSolution *gAnalytic = 0;
     TPZMixedElasticityND* matelastic = 0;
     if(DIM == 2) {
-        TElasticity2DAnalytic *elas = new TElasticity2DAnalytic;
-        elas->gE = 1.e3;
-        elas->gPoisson = 0.0;
-        elas->fPlaneStress = 0;
-        matelastic = new TPZMixedElasticityND(EDomain, elas->gE, elas->gPoisson, 0, 0, elas->fPlaneStress, DIM);
-        
+        DebugStop(); // Not interested in 2d for now
     }
     else if(DIM == 3) {
         TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
@@ -341,9 +336,13 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 {
     //sets number of threads to be used by the solver
     constexpr int nThreads{global_nthread};
-    TPZSkylineStructMatrix<STATE> matskl(cmesh);
-//    TPZSSpStructMatrix<STATE> matskl(cmesh);
-    //    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> matskl(cmesh);
+
+#if defined(__x86_64__) || defined(__x86_64)
+    TPZSSpStructMatrix<STATE> matskl(cmesh);
+#elif defined(__arm__) || defined(__aarch64__)
+    TPZSkylineStructMatrix<REAL> matskl(cmesh);
+#endif
+    
     an.SetStructuralMatrix(matskl);
     
     ///Setting a direct solver
@@ -352,17 +351,19 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     
     an.SetSolver(step);
     
+    std::cout << "------- Starting Assemble -------" << std::endl;
+    std::cout << "Nequations = " << an.Mesh()->NEquations() << std::endl;
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     an.Assemble();
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time Assemble = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()/1000. << " s" << std::endl;
     
     ///solves the system
+    std::cout << "------- Starting Solve -------" << std::endl;
     std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
     an.Solve();
     std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
     std::cout << "Time Solve = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count()/1000. << " s" << std::endl;
-    
 }
 
 TPZGeoMesh* ReadMeshFromGmsh(std::string file_name)

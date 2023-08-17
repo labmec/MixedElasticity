@@ -31,6 +31,8 @@ IF(APPLE)
    add_custom_target( GlobalFiles SOURCES ${PZ_SRC})
 ENDIF(APPLE)
 
+message("Processor architecture = ${CMAKE_SYSTEM_PROCESSOR}")
+
 add_subdirectory(Mixed2D)
 add_subdirectory(MHM-Elas-3D)
 
