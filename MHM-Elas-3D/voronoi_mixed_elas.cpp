@@ -66,7 +66,7 @@ int main()
     TPZLogger::InitializePZLOG();
 #endif
     
-    std::string meshname = "MHMesh1.msh";
+    std::string meshname = "MHMesh_np2.msh";
     int nrefinternal = 1;
     int nrefskel = 0;
     const int pord = 1;
@@ -74,7 +74,7 @@ int main()
     // Creates/import a geometric mesh
     TPZGeoMesh* gmesh = nullptr;
     const bool readFromGMesh = true;
-    if(readFromGMesh){        
+    if(readFromGMesh){
         meshname = std::string(MESHES_DIR) + "/" + meshname;
         gmesh = ReadMeshFromGmsh(meshname);
     }
@@ -364,7 +364,8 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     TPZSkylineStructMatrix<REAL> matskl(cmesh);
 #endif
     
-    an.SetStructuralMatrix(matskl);
+    matskl.SetNumThreads(nThreads);
+    an.SetStructuralMatrix(matskl);    
     
     ///Setting a direct solver
     TPZStepSolver<STATE> step;
