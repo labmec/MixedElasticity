@@ -152,12 +152,39 @@ int main()
     //  std::ofstream myfile(txt);
     //  cmesh->Print(myfile);
     
+    std::cout << "NEquations " << cmesh->NEquations() << std::endl;
     //Create analysis environment
     TPZLinearAnalysis an(cmesh);
     
     //Solve problem
     SolveProblemDirect(an,cmesh);
     
+    
+    // -------> Calculating error
+    an.SetExact(gAnalytic->ExactSolution());
+    an.SetThreadsForError(global_nthread);
+    std::ofstream ErroOut("myerrors.txt", std::ios::app);
+    TPZMaterial *mat = cmesh->FindMaterial(EDomain);
+    TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
+    TPZManVector<REAL, 10> Errors(materr->NEvalErrors());
+    bool store_errors = true;
+    Errors.Fill(0.);
+    cmesh->ElementSolution().Redim(cmesh->NElements(), Errors.size());
+    std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
+    an.PostProcessError(Errors, store_errors, ErroOut);
+    std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
+    std::cout << "Time PostProc Error = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count()/1000. << " s" << std::endl;
+    
+    std::cout << "Computed errors." << std::endl;
+    // error_sigma - error_energy - error_div_sigma - error_u - error_r - error_as - energy_norm_exact_sol
+    std::cout.precision(15);
+    std::cout.setf(std::ios::fixed);
+    std::cout << "Errors = ";
+    std::cout << Errors << std::endl;
+    //  for (int i = 0; i < Errors.size(); i++) {
+    //    std::cout << Errors[i] << std::endl;
+    //  }
+//    cmesh->ElementSolution().Print("element error");
     {
         TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(cmesh->MeshVector(), cmesh);
         TPZSimpleTimer postProc("Post processing2");
@@ -171,36 +198,14 @@ int main()
             "Displacement",
             "SigmaX",
             "SigmaY",
-            "TauXY"
+            "TauXY",
+            "ElementSigmaError"
         };
         auto vtk = TPZVTKGenerator(cmesh, fields, plotfile, vtkRes);
         vtk.SetNThreads(global_nthread);
-        
         vtk.Do();
     }
-    
-    // -------> Calculating error
-    an.SetExact(gAnalytic->ExactSolution());
-    an.SetThreadsForError(global_nthread);
-    std::ofstream ErroOut("myerrors.txt", std::ios::app);
-    TPZMaterial *mat = cmesh->FindMaterial(EDomain);
-    TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
-    TPZManVector<REAL, 10> Errors(materr->NEvalErrors());
-    bool store_errors = false;
-    Errors.Fill(0.);
-    
-    std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
-    an.PostProcessError(Errors, store_errors, ErroOut);
-    std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
-    std::cout << "Time PostProc Error = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count()/1000. << " s" << std::endl;
-    
-    std::cout << "Computed errors." << std::endl;
-    // error_sigma - error_energy - error_div_sigma - error_u - error_r - error_as - energy_norm_exact_sol
-    std::cout << "Errors = " << std::ios::fixed <<  std::setprecision(15) << Errors << std::endl;
-    //  for (int i = 0; i < Errors.size(); i++) {
-    //    std::cout << Errors[i] << std::endl;
-    //  }
-    
+
     return 0;
 }
 
@@ -336,8 +341,8 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 {
     //sets number of threads to be used by the solver
     constexpr int nThreads{global_nthread};
-    //    TPZSkylineStructMatrix<REAL> matskl(cmesh);
-    TPZSSpStructMatrix<STATE> matskl(cmesh);
+    TPZSkylineStructMatrix<STATE> matskl(cmesh);
+//    TPZSSpStructMatrix<STATE> matskl(cmesh);
     //    TPZSSpStructMatrix<STATE,TPZStructMatrixOR<STATE>> matskl(cmesh);
     an.SetStructuralMatrix(matskl);
     
