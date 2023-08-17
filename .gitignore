@@ -143,3 +143,4 @@ Mixed2D/mixelas_config.h
 MHM-Elas-3D/mesh-generator/__pycache__
 MHM-Elas-3D/mesh-generator/*msh
 MHM-Elas-3D/mesh-generator/*geo_unrolled
+MHM-Elas-3D/meshpath_config.h

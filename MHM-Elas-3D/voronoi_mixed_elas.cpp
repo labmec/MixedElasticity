@@ -25,6 +25,7 @@
 #include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
 #include "pzstepsolver.h"
+#include "meshpath_config.h"
 
 enum EMatid  {ENone, EDomain, EBoundary, EMHM, EPont, EWrap, EIntface, EPressureHyb, EBCLeft, EBCRight, EZeroNeu};
 
@@ -53,7 +54,7 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh);
  */
 TPZGeoMesh* ReadMeshFromGmsh(std::string file_name);
 
-void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh);
+void CheckBCs(TPZGeoMesh* gmesh);
 
 void DivideGMesh(TPZGeoMesh *gmesh, int internaldiv, int skeletondiv);
 
@@ -65,28 +66,25 @@ int main()
     TPZLogger::InitializePZLOG();
 #endif
     
+    std::string meshname = "MHMesh1.msh";
     int nrefinternal = 1;
     int nrefskel = 0;
     const int pord = 1;
-    int DIM = 3;
-    TPZVec<int> nDivs;
-    
-    const int ndiv = 3;
-    if (DIM == 2) nDivs = {ndiv,ndiv};
-    if (DIM == 3) nDivs = {ndiv,ndiv,ndiv};
-    
+            
     // Creates/import a geometric mesh
     TPZGeoMesh* gmesh = nullptr;
     const bool readFromGMesh = true;
-    if(readFromGMesh){
-        gmesh = ReadMeshFromGmsh("MHMesh1.msh");
+    if(readFromGMesh){        
+        meshname = std::string(MESHES_DIR) + "/" + meshname;
+        gmesh = ReadMeshFromGmsh(meshname);
     }
     else{
-        if(DIM == 2)
-            gmesh = CreateGeoMesh<pzshape::TPZShapeQuad>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
-        else
-            gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
+        TPZVec<int> nDivs;
+        const int ndiv = 3;
+        nDivs = {ndiv,ndiv,ndiv};
+        gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
     }
+    int DIM = gmesh->Dimension();
     if (nrefinternal || nrefskel) {
         if(nrefskel > nrefinternal) DebugStop();
         DivideGMesh(gmesh, nrefinternal, nrefskel);
@@ -97,7 +95,7 @@ int main()
         std::ofstream out("domains.vtk");
         TPZVTKGeoMesh::PrintGMeshVTK(gmesh, out, domain);
     }
-    FixBCsForHomogeneousTest(gmesh);
+    CheckBCs(gmesh);
     
     {
         std::ofstream outgmesh("geomesh.vtk");
@@ -152,16 +150,16 @@ int main()
     val2[0] = 1.;
     TPZBndCondT<STATE> *BCond3 = matelastic->CreateBC(matelastic, EZeroNeu, diri, val1, val2);
     BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),3);
-    
     hdivCreator.InsertMaterialObject(BCond3);
     
-    {
-        val2[0] = 0.;
-        TPZBndCondT<STATE> *MHM = matelastic->CreateBC(matelastic, EMHM, diri, val1, val2);
-        hdivCreator.InsertMaterialObject(MHM);
-    }
+    // Interface materials for MHM
+    val2[0] = 0.;
+    TPZBndCondT<STATE> *MHM = matelastic->CreateBC(matelastic, EMHM, diri, val1, val2);
+    hdivCreator.InsertMaterialObject(MHM);
+    
     //Multiphysics mesh
     TPZMultiphysicsCompMesh *cmesh = hdivCreator.CreateApproximationSpace();
+    
 #ifdef PZDEBUG
     {
         std::string txt = "multiphysicsmesh.txt";
@@ -410,7 +408,7 @@ TPZGeoMesh* ReadMeshFromGmsh(std::string file_name)
     return gmesh;
 }
 
-void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh){
+void CheckBCs(TPZGeoMesh* gmesh){
     const int64_t nel = gmesh->NElements();
     for (int iel = 0; iel < nel; iel++) {
         TPZGeoEl* gel = gmesh->Element(iel);
@@ -422,28 +420,17 @@ void FixBCsForHomogeneousTest(TPZGeoMesh* gmesh){
             if(gelside.Neighbour() == gelside)
             {
                 DebugStop();
-                //              TPZGeoElBC gbc(gelside,EZeroNeu);
             }
         }
-        //    TPZManVector<REAL,3> centqsi(2,0.),cent(3,0.);
-        //    gel->CenterPoint(gel->NSides()-1, centqsi);
-        //    gel->X(centqsi, cent);
-        //    if(fabs(cent[0]) < 1.e-10){
-        //      gel->SetMaterialId(EBCLeft);
-        //    }
-        //    if(fabs(cent[0]-1.) < 1.e-10){
-        //      gel->SetMaterialId(EBCRight);
-        //    }
     }
 }
 
 void DivideGMesh(TPZGeoMesh *gmesh, int internaldiv, int skeletondiv){
-    int skeletonmatid = EMHM;
     for (int div=0; div<internaldiv; div++) {
         int64_t nel = gmesh->NElements();
         for (int64_t el = 0; el<nel; el++) {
             TPZGeoEl *gel = gmesh->Element(el);
-            if(!gel || gel->MaterialId() == EMHM) continue;
+            if(!gel || gel->MaterialId() == EMHM) continue; // == EMHM skips all interfaces between macro domains
             if(gel->HasSubElement()) continue;
             TPZManVector<TPZGeoEl *> subels;
             gel->Divide(subels);
@@ -453,7 +440,7 @@ void DivideGMesh(TPZGeoMesh *gmesh, int internaldiv, int skeletondiv){
         int64_t nel = gmesh->NElements();
         for (int64_t el = 0; el<nel; el++) {
             TPZGeoEl *gel = gmesh->Element(el);
-            if(!gel || gel->MaterialId() != EMHM) continue;
+            if(!gel || gel->MaterialId() != EMHM) continue; // != EMHM skips everyone that is not interface between macro domains
             if(gel->HasSubElement()) continue;
             TPZManVector<TPZGeoEl *> subels;
             gel->Divide(subels);
