@@ -72,8 +72,7 @@ int main(int argc, char *argv[])
         meshname = "MHMeshSimple_np" + std::string(argv[1]) + ".msh";
     }
     else{
-        meshname = "MHMesh_np4.msh";
-        meshname = "MHMeshSimple_np2.msh";
+        meshname = "MHMesh_np6.msh";
     }
     
     int nrefinternal = 1;
@@ -98,20 +97,22 @@ int main(int argc, char *argv[])
         if(nrefskel > nrefinternal) DebugStop();
         DivideGMesh(gmesh, nrefinternal, nrefskel);
     }
-    TPZVec<int> domain(gmesh->NElements(),-1);
-    IdentifyMHMDomain(gmesh, domain);
-    {
-        std::ofstream out("domains.vtk");
-        TPZVTKGeoMesh::PrintGMeshVTK(gmesh, out, domain);
-    }
     CheckBCs(gmesh);
-    
+
     {
         std::ofstream outgmesh("geomesh.vtk");
         TPZVTKGeoMesh::PrintGMeshVTK(gmesh, outgmesh);
         std::ofstream outgmesh2("geomesh.txt");
         gmesh->Print(outgmesh2);
     }
+
+    TPZVec<int> domain(gmesh->NElements(),-1);
+    IdentifyMHMDomain(gmesh, domain);
+    {
+        std::ofstream out("domains.vtk");
+        TPZVTKGeoMesh::PrintGMeshVTK(gmesh, out, domain, true);
+    }
+    
     TPZHDivApproxCreator hdivCreator(gmesh);
     hdivCreator.HdivFamily() = HDivFamily::EHDivStandard;
     hdivCreator.ProbType() = ProblemType::EElastic;
@@ -459,25 +460,54 @@ void DivideGMesh(TPZGeoMesh *gmesh, int internaldiv, int skeletondiv){
     }
 }
 
-void ProcessElement(TPZGeoEl *gel, TPZVec<int> &domain) {
-    std::list<TPZGeoEl *> check;
-    int firstside = gel->FirstSide(2);
-    int lastside = gel->NSides()-1;
-    if(gel->Dimension() == 2) lastside++;
-    int skeletonmatid = EMHM;
-    int geldomain = domain[gel->Index()];
-    for(int side = firstside; side < lastside; side++) {
-        TPZGeoElSide gelside(gel,side);
-        if(gelside.HasNeighbour(skeletonmatid)) {
-            continue;
+static std::set<int64_t> process;
+
+void SetSubdomain(TPZGeoEl *gel, int domain, TPZVec<int> &alldomains)
+{
+    int64_t index = gel->Index();
+    std::cout << "Inserting " << index << " d " << domain << std::endl;
+    alldomains[index] = domain;
+    if(gel->HasSubElement()) {
+        int nsubel = gel->NSubElements();
+        if(nsubel){
+            std::cout << "nsubelements " << nsubel << std::endl;
         }
-        TPZGeoElSide neighbour = gelside.Neighbour();
-        int64_t indexneigh = neighbour.Element()->Index();
-        if(domain[indexneigh] == -1) check.push_back(neighbour.Element());
-        domain[indexneigh] = geldomain;
+        else {
+            std::cout << "I should stop\n";
+        }
+        for(int is=0; is<nsubel; is++) {
+            SetSubdomain(gel->SubElement(is), domain, alldomains);
+        }
     }
-    for(auto it : check) {
-        ProcessElement(it, domain);
+}
+
+
+void ProcessElements(TPZGeoMesh *gmesh, TPZVec<int> &domain) {
+    while(process.size()) {
+        int64_t index = *process.begin();
+        process.erase(index);
+        TPZGeoEl *gel = gmesh->Element(index);
+        int64_t gelindex = gel->Index();
+        std::cout << "Processing " << gelindex << " d " << domain[gelindex] << std::endl;
+        int firstside = gel->FirstSide(2);
+        int lastside = gel->NSides()-1;
+        if(gel->Dimension() == 2) lastside++;
+        int skeletonmatid = EMHM;
+        int geldomain = domain[gel->Index()];
+        if(geldomain == -1) DebugStop();
+        if(gel->MaterialId() == EMHM) DebugStop();
+        for(int side = firstside; side < lastside; side++) {
+            TPZGeoElSide gelside(gel,side);
+            if(gelside.HasNeighbour(skeletonmatid)) {
+                continue;
+            }
+            TPZGeoElSide neighbour = gelside.Neighbour();
+            int64_t indexneigh = neighbour.Element()->Index();
+            if(domain[indexneigh] == -1) {
+                process.insert(indexneigh);
+                SetSubdomain(neighbour.Element(), geldomain, domain);
+            }
+        }
     }
 }
 void IdentifyMHMDomain(TPZGeoMesh *gmesh, TPZVec<int> &domain)
@@ -493,11 +523,21 @@ void IdentifyMHMDomain(TPZGeoMesh *gmesh, TPZVec<int> &domain)
             if(domain[el] != -1) continue;
             TPZGeoEl *gel = gmesh->Element(el);
             if(gel->MaterialId() == EMHM) continue;
-            domain[el] = currentdomain;
+            if(gel->Father()) continue;
+            SetSubdomain(gel, currentdomain, domain);
             found = true;
-            ProcessElement(gel, domain);
-            break;
+            process.insert(el);
+            std::cout << "Inserting " << el << " d " << currentdomain << std::endl;
+            ProcessElements(gmesh, domain);
         }
         currentdomain++;
     }
+    for (int64_t el = 0; el < nel; el++) {
+        TPZGeoEl *gel = gmesh->Element(el);
+        if(gel->MaterialId() == EMHM) continue;
+        if(domain[el] == -1) {
+            DebugStop();
+        }
+    }
+
 }
