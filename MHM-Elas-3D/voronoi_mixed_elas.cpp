@@ -69,9 +69,11 @@ int main(int argc, char *argv[])
     std::string meshname;
     if(argc > 1){
         meshname = "MHMesh_np" + std::string(argv[1]) + ".msh";
+        meshname = "MHMeshSimple_np" + std::string(argv[1]) + ".msh";
     }
     else{
-        meshname = "MHMesh_np2.msh";
+        meshname = "MHMesh_np4.msh";
+        meshname = "MHMeshSimple_np2.msh";
     }
     
     int nrefinternal = 1;
