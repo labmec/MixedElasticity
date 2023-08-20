@@ -24,6 +24,9 @@
 #include "TPZMultiphysicsCompMesh.h"
 #include "pzskylstrmatrix.h"
 #include "TPZSSpStructMatrix.h"
+#include "pzfstrmatrix.h"
+#include "pzsbstrmatrix.h"
+#include "pzbstrmatrix.h"
 #include "pzstepsolver.h"
 #include "pzsubcmesh.h"
 #include "pzelementgroup.h"
@@ -65,6 +68,10 @@ void IdentifyMHMDomain(TPZGeoMesh *gmesh, TPZVec<int> &domain);
 
 void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains);
 
+void GroupElements(TPZCompMesh *submesh);
+
+void CondenseElements(TPZCompMesh *submesh);
+
 int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
@@ -77,10 +84,10 @@ int main(int argc, char *argv[])
         meshname = "MHMeshSimple_np" + std::string(argv[1]) + ".msh";
     }
     else{
-        meshname = "MHMesh_np2.msh";
+        meshname = "MHMesh_np6.msh";
     }
     
-    int nrefinternal = 1;
+    int nrefinternal = 0;
     int nrefskel = 0;
     const int pord = 1;
             
@@ -136,8 +143,9 @@ int main(int argc, char *argv[])
     else if(DIM == 3) {
         TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
         elas->fE = 250.;//206.8150271873455;
-        elas->fPoisson = 0.25;//0.3040039545229857;
+        elas->fPoisson = 0.0;//0.3040039545229857;
         elas->fProblemType = TElasticity3DAnalytic::EYotov;
+        elas->fProblemType = TElasticity3DAnalytic::EDispx;
         gAnalytic = elas;
         matelastic = new TPZMixedElasticityND(EDomain, elas->fE, elas->fPoisson, 0, 0, 0 /*planestress*/, DIM);
     }
@@ -175,7 +183,59 @@ int main(int argc, char *argv[])
     //Multiphysics mesh
     TPZMultiphysicsCompMesh *cmesh = hdivCreator.CreateApproximationSpace();
     Substructure(cmesh, domain);
+//    cmesh->LoadReferences();
+//    GroupElements(cmesh);
+//    CondenseElements(cmesh);
     
+    std::cout << "NEquations " << cmesh->NEquations() << std::endl;
+    //Create analysis environment
+    TPZLinearAnalysis an(cmesh);
+    
+    //Solve problem
+    SolveProblemDirect(an,cmesh);
+#ifdef PZDEBUG
+    {
+        std::string txt = "multiphysicsmesh.txt";
+        std::ofstream myfile(txt);
+        cmesh->Print(myfile);
+    }
+#endif
+    if(0)
+    {
+        auto SetDisp = [](TPZCompMesh *cmesh)
+        {
+            cmesh->Solution().Zero();
+            TPZBlock &block = cmesh->Block();
+            int64_t ncon = cmesh->NConnects();
+            TPZFMatrix<STATE> &sol = cmesh->Solution();
+            for(int64_t ic = 0; ic<ncon; ic++) {
+                TPZConnect &c = cmesh->ConnectVec()[ic];
+                if(c.LagrangeMultiplier() == 4) {
+                    int64_t seq = c.SequenceNumber();
+                    int64_t pos = block.Position(seq);
+                    sol(pos,0) = 1.;
+                }
+            }
+            cmesh->LoadSolution(sol);
+            if(0)
+            {
+                std::ofstream out("mesh.txt");
+                cmesh->Print(out);
+            }
+            std::cout << "printed\n";
+        };
+        SetDisp(cmesh);
+        if(0) {
+            int64_t nel = cmesh->NElements();
+            for(int64_t el = 0; el<nel; el++) {
+                TPZSubCompMesh *sub = dynamic_cast<TPZSubCompMesh *>(cmesh->Element(el));
+                if(sub) {
+                    SetDisp(sub);
+                }
+            }
+        }
+    }
+    cmesh->TransferMultiphysicsSolution();
 #ifdef PZDEBUG
     {
         std::string txt = "multiphysicsmesh.txt";
@@ -184,14 +244,7 @@ int main(int argc, char *argv[])
     }
 #endif
     
-    std::cout << "NEquations " << cmesh->NEquations() << std::endl;
-    //Create analysis environment
-    TPZLinearAnalysis an(cmesh);
-    
-    //Solve problem
-    SolveProblemDirect(an,cmesh);
-    
-    
+
     // -------> Calculating error
     std::cout << "------- Starting PostProc Error -------" << std::endl;
     an.SetExact(gAnalytic->ExactSolution());
@@ -388,7 +441,9 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
 #if defined(__x86_64__) || defined(__x86_64)
     TPZSSpStructMatrix<STATE> matskl(cmesh);
 #elif defined(__arm__) || defined(__aarch64__)
-    TPZSkylineStructMatrix<REAL> matskl(cmesh);
+//    TPZSkylineStructMatrix<REAL> matskl(cmesh);
+//    TPZFStructMatrix<> matskl(cmesh);
+    TPZBandStructMatrix<> matskl(cmesh);
 #endif
     
     matskl.SetNumThreads(nThreads);
@@ -396,7 +451,7 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     
     ///Setting a direct solver
     TPZStepSolver<STATE> step;
-    step.SetDirect(ELDLt);//ELU //ECholesky // ELDLt
+    step.SetDirect(ELU);//ELU //ECholesky // ELDLt
     
     an.SetSolver(step);
     
@@ -560,8 +615,6 @@ void IdentifyMHMDomain(TPZGeoMesh *gmesh, TPZVec<int> &domain)
 
 }
 
-void GroupElements(TPZSubCompMesh *submesh);
-void CondenseElements(TPZSubCompMesh *submesh);
 void MakeConnectsInternal(TPZSubCompMesh *submesh);
 
 void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains)
@@ -603,7 +656,7 @@ void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains)
         TPZCompMesh *cmesh = it.second;
         int64_t neq = cmesh->NEquations();
         std::cout << "Configuring submesh neq = " << neq << std::endl;
-        it.second->SetAnalysisSkyline();
+        it.second->SetAnalysisFStruct(0);
     }
     cmesh->ComputeNodElCon();
     int64_t ncon = cmesh->NConnects();
@@ -615,7 +668,7 @@ void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains)
     cmesh->CleanUpUnconnectedNodes();
 }
 
-void GroupElements(TPZSubCompMesh *cmesh) {
+void GroupElements(TPZCompMesh *cmesh) {
     // look for the boundary elements and group them with their neighbour
     int64_t nel = cmesh->NElements();
     for (int64_t el = 0; el<nel; el++) {
@@ -627,6 +680,7 @@ void GroupElements(TPZSubCompMesh *cmesh) {
         }
         int64_t gelindex = gel->Index();
         if(gel->Dimension() == 2) {
+            if(gel->MaterialId() == EMHM) continue;
             TPZGeoElSide gelside(gel);
             TPZGeoElSide neighbour = gelside.Neighbour();
             TPZGeoEl *neigh = neighbour.Element();
@@ -639,7 +693,7 @@ void GroupElements(TPZSubCompMesh *cmesh) {
             for(int side=firstside; side<lastside; side++) {
                 TPZGeoElSide gelside(neigh,side);
                 TPZGeoElSide neighbour = gelside.Neighbour();
-                if(neighbour.Element()->Dimension() == 2) {
+                if(neighbour.Element()->Dimension() == 2 && neighbour.Element()->MaterialId() != EMHM) {
                     TPZCompEl *cel = neighbour.Element()->Reference();
                     if(!cel) DebugStop();
                     grouped.insert(cel);
@@ -654,7 +708,7 @@ void GroupElements(TPZSubCompMesh *cmesh) {
     }
 }
 
-void CondenseElements(TPZSubCompMesh *submesh)
+void CondenseElements(TPZCompMesh *submesh)
 {
     submesh->ComputeNodElCon();
 //    {
@@ -675,7 +729,7 @@ void CondenseElements(TPZSubCompMesh *submesh)
                 break;
             }
         }
-        if(!found) DebugStop();
+        if(!found) continue;
 //        for(int ic=0; ic<ncon; ic++) {
 //            cel->Connect(ic).Print(*submesh);
 //        }
@@ -687,11 +741,15 @@ void CondenseElements(TPZSubCompMesh *submesh)
 
 void MakeConnectsInternal(TPZSubCompMesh *submesh) {
     int ncon = submesh->NConnects();
+    int count = 0;
     bool found = false;
     for(int ic = 0; ic<ncon; ic++) {
         TPZConnect &c = submesh->Connect(ic);
         if(c.LagrangeMultiplier() == 4) {
             c.IncrementElConnected();
+            count++;
+        }
+        if(count == 1) {
             submesh->MakeAllInternal();
             submesh->ComputeNodElCon();
             submesh->CleanUpUnconnectedNodes();
@@ -700,7 +758,7 @@ void MakeConnectsInternal(TPZSubCompMesh *submesh) {
         }
     }
     if(!found) {
-        std::cout << "No Lagrange multiplier of level 3\n";
+        std::cout << "No Lagrange multiplier of level 4\n";
         DebugStop();
     }
 }
