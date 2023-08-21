@@ -85,6 +85,7 @@ int main(int argc, char *argv[])
     }
     else{
         meshname = "MHMesh_np2.msh";
+        meshname = "MHMeshEquiTet_np1.msh";
     }
     
     int nrefinternal = 0;
@@ -440,8 +441,8 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     constexpr int nThreads{global_nthread};
 
 #if defined(__x86_64__) || defined(__x86_64)
-//    TPZSSpStructMatrix<STATE> matskl(cmesh);
-    TPZFStructMatrix<STATE> matskl(cmesh);
+    TPZSSpStructMatrix<STATE> matskl(cmesh);
+//    TPZFStructMatrix<STATE> matskl(cmesh);
 #elif defined(__arm__) || defined(__aarch64__)
 //    TPZSkylineStructMatrix<REAL> matskl(cmesh);
 //    TPZFStructMatrix<> matskl(cmesh);
