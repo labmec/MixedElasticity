@@ -75,7 +75,7 @@ void CondenseElements(TPZCompMesh *submesh);
 int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
-    TPZLogger::InitializePZLOG();
+    TPZLogger::InitializePZLOG(std::string(MESHES_DIR) + "/" + "log4cxx.cfg");
 #endif
     
     std::string meshname;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
         meshname = "MHMeshSimple_np" + std::string(argv[1]) + ".msh";
     }
     else{
-        meshname = "MHMesh_np6.msh";
+        meshname = "MHMesh_np2.msh";
     }
     
     int nrefinternal = 0;
@@ -100,9 +100,10 @@ int main(int argc, char *argv[])
     }
     else{
         TPZVec<int> nDivs;
-        const int ndiv = 3;
+        const int ndiv = 1;
         nDivs = {ndiv,ndiv,ndiv};
-        gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
+//        gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EBCLeft, EBCRight, EZeroNeu);
+        gmesh = CreateGeoMesh<pzshape::TPZShapeTetra>(nDivs, EDomain, EZeroNeu);
     }
     int DIM = gmesh->Dimension();
     if (nrefinternal || nrefskel) {
@@ -143,9 +144,9 @@ int main(int argc, char *argv[])
     else if(DIM == 3) {
         TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
         elas->fE = 250.;//206.8150271873455;
-        elas->fPoisson = 0.0;//0.3040039545229857;
+        elas->fPoisson = 0.25;//0.3040039545229857;
         elas->fProblemType = TElasticity3DAnalytic::EYotov;
-        elas->fProblemType = TElasticity3DAnalytic::EDispx;
+//        elas->fProblemType = TElasticity3DAnalytic::EDispx;
         gAnalytic = elas;
         matelastic = new TPZMixedElasticityND(EDomain, elas->fE, elas->fPoisson, 0, 0, 0 /*planestress*/, DIM);
     }
@@ -657,6 +658,9 @@ void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains)
         int64_t neq = cmesh->NEquations();
         std::cout << "Configuring submesh neq = " << neq << std::endl;
         it.second->SetAnalysisFStruct(0);
+//        it.second->SetAnalysisSparse(0);
+//        it.second->SetAnalysisSkyline();
+//        it.second->SetAnalysisNonSymSparse(0);
     }
     cmesh->ComputeNodElCon();
     int64_t ncon = cmesh->NConnects();
