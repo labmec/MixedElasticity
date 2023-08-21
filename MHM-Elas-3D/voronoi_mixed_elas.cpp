@@ -440,7 +440,8 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     constexpr int nThreads{global_nthread};
 
 #if defined(__x86_64__) || defined(__x86_64)
-    TPZSSpStructMatrix<STATE> matskl(cmesh);
+//    TPZSSpStructMatrix<STATE> matskl(cmesh);
+    TPZFStructMatrix<STATE> matskl(cmesh);
 #elif defined(__arm__) || defined(__aarch64__)
 //    TPZSkylineStructMatrix<REAL> matskl(cmesh);
 //    TPZFStructMatrix<> matskl(cmesh);
@@ -657,10 +658,12 @@ void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains)
         TPZCompMesh *cmesh = it.second;
         int64_t neq = cmesh->NEquations();
         std::cout << "Configuring submesh neq = " << neq << std::endl;
-        it.second->SetAnalysisFStruct(0);
-//        it.second->SetAnalysisSparse(0);
-//        it.second->SetAnalysisSkyline();
-//        it.second->SetAnalysisNonSymSparse(0);
+#if defined(__x86_64__) || defined(__x86_64)
+        it.second->SetAnalysisSparse(global_nthread);
+#elif defined(__arm__) || defined(__aarch64__)
+//        it.second->SetAnalysisFStruct(0);
+        it.second->SetAnalysisSkyline();
+#endif
     }
     cmesh->ComputeNodElCon();
     int64_t ncon = cmesh->NConnects();
