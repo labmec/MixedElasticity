@@ -33,6 +33,8 @@
 #include "pzcondensedcompel.h"
 #include "meshpath_config.h"
 
+#include "VoronoiAnalise.h"
+
 enum EMatid  {ENone, EDomain, EBoundary, EMHM, EPont, EWrap, EIntface, EPressureHyb, EBCLeft, EBCRight, EZeroNeu};
 
 const int global_nthread = 16;
@@ -71,6 +73,9 @@ void Substructure(TPZCompMesh *cmesh, TPZVec<int> &domains);
 void GroupElements(TPZCompMesh *submesh);
 
 void CondenseElements(TPZCompMesh *submesh);
+
+// find the element groups which link to identical subdomain
+void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain);
 
 int main(int argc, char *argv[])
 {
@@ -184,17 +189,13 @@ int main(int argc, char *argv[])
     
     //Multiphysics mesh
     TPZMultiphysicsCompMesh *cmesh = hdivCreator.CreateApproximationSpace();
+//    IdentifyInteractionPlanes(cmesh, domain);
     Substructure(cmesh, domain);
 //    cmesh->LoadReferences();
 //    GroupElements(cmesh);
 //    CondenseElements(cmesh);
-    
     std::cout << "NEquations " << cmesh->NEquations() << std::endl;
     //Create analysis environment
-    TPZLinearAnalysis an(cmesh);
-    
-    //Solve problem
-    SolveProblemDirect(an,cmesh);
 #ifdef PZDEBUG
     {
         std::string txt = "multiphysicsmesh.txt";
@@ -202,6 +203,10 @@ int main(int argc, char *argv[])
         cmesh->Print(myfile);
     }
 #endif
+    TPZLinearAnalysis an(cmesh);
+    
+    //Solve problem
+    SolveProblemDirect(an,cmesh);
     if(0)
     {
         auto SetDisp = [](TPZCompMesh *cmesh)
@@ -444,9 +449,9 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     TPZSSpStructMatrix<STATE> matskl(cmesh);
 //    TPZFStructMatrix<STATE> matskl(cmesh);
 #elif defined(__arm__) || defined(__aarch64__)
-//    TPZSkylineStructMatrix<REAL> matskl(cmesh);
+    TPZSkylineStructMatrix<REAL> matskl(cmesh);
 //    TPZFStructMatrix<> matskl(cmesh);
-    TPZBandStructMatrix<> matskl(cmesh);
+//    TPZBandStructMatrix<> matskl(cmesh);
 #endif
     
     matskl.SetNumThreads(nThreads);
@@ -454,7 +459,7 @@ void SolveProblemDirect(TPZLinearAnalysis &an, TPZCompMesh *cmesh)
     
     ///Setting a direct solver
     TPZStepSolver<STATE> step;
-    step.SetDirect(ELU);//ELU //ECholesky // ELDLt
+    step.SetDirect(ELDLt);//ELU //ECholesky // ELDLt
     
     an.SetSolver(step);
     
@@ -770,3 +775,48 @@ void MakeConnectsInternal(TPZSubCompMesh *submesh) {
         DebugStop();
     }
 }
+
+// find the element groups which link to identical subdomain
+void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain) {
+    std::map<std::pair<int,int>,TPZFaceDefinition> faces;
+    cmesh->LoadReferences();
+    int64_t nel = cmesh->NElements();
+    for (int64_t el = 0; el < nel; el++) {
+        TPZCompEl *cel = cmesh->Element(el);
+        if(!cel) continue;
+        TPZSubCompMesh *sub = dynamic_cast<TPZSubCompMesh *>(cel);
+        if(sub) continue;
+        TPZGeoEl *gel = cel->Reference();
+        if(!gel) continue;
+        int matid = gel->MaterialId();
+        if(matid != EMHM) continue;
+        TPZGeoElSide gelside(gel);
+        std::set<int> leftrightdomain;
+        TPZGeoElSide neighbour = gelside.Neighbour();
+        while (neighbour != gelside) {
+            int64_t elindex = neighbour.Element()->Index();
+            int eldomain = domain[elindex];
+            leftrightdomain.insert(eldomain);
+            neighbour = neighbour.Neighbour();
+        }
+        if(leftrightdomain.size() != 2) {
+            DebugStop();
+        }
+        std::pair<int,int> lr = {*leftrightdomain.begin(),*leftrightdomain.rbegin()};
+        faces[lr].fLeftRightDomain = lr;
+        faces[lr].fElementList.push_back(cel);
+    }
+    for(auto &it : faces) {
+        TPZFaceDefinition &face = it.second;
+        face.InitializeDataStructure();
+    }
+    cmesh->ExpandSolution();
+    for(auto &it : faces) {
+        TPZFaceDefinition &face = it.second;
+        for(auto cel : face.fElementList) {
+            face.Project(cel);
+        }
+    }
+    cmesh->CleanUpUnconnectedNodes();
+}
+
