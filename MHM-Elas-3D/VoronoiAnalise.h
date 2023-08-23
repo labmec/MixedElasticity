@@ -33,6 +33,9 @@ struct TPZFaceDefinition {
     // list of aligned face elements between both domains
     std::list<TPZCompEl *> fElementList;
     
+    // Total area of the interface
+    REAL fTotalArea = 0.;
+    
     // return the number of shape functions
     int NShape();
     // compute the value of the shape functions at a point in the cartesian space
@@ -42,9 +45,11 @@ struct TPZFaceDefinition {
     void Project(TPZCompEl *cel);
     
     // Initialize geometric datastructure
-    void InitializeDataStructure();
+    void InitializeDataStructure(const int pord);
     
     /// Compute the center of of the polygon and its area
     void ComputeCenter();
+    
+    
 };
 #endif /* VoronoiAnalise_hpp */

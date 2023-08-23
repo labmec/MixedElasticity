@@ -75,22 +75,55 @@ void GroupElements(TPZCompMesh *submesh);
 void CondenseElements(TPZCompMesh *submesh);
 
 // find the element groups which link to identical subdomain
-void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain);
+void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain, const int pord, REAL& smallestVoronoiInterfaceArea);
 
+// argv parameters, when used are, in this order:
+// np: number of points used to create the voronoi mesh (1 to 5)
+// analysol: type of analytical sol used for error computation (0 = EStretchX, 1 = EStretchY, 2 = EYotov)
+// useReducedSpaceOnFace: using reduced space on voronoi interface (true of false)
+// pordface: polynomial order of function defined on voronoi interface
 int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
     TPZLogger::InitializePZLOG(std::string(MESHES_DIR) + "/" + "log4cxx.cfg");
 #endif
+    std::ofstream out("voronoi-results.txt",std::ios::app);
+    
+    TElasticity3DAnalytic::EDefState asol;
+    bool useReducedSpaceOnFace = true;
+    int pordface = 0;
+    if (argc > 1 && argc != 5) DebugStop();
+    
+    if (argc > 1) {
+        out << "\n----------------- Starting new simulation -----------------" << std::endl;
+        out << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << std::endl;
+        std::cout << "\n----------------- Starting new simulation -----------------" << std::endl;
+        std::cout << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << std::endl;
+                        
+        const int input_asol = atoi(argv[2]);
+        if (input_asol == 0)
+            asol = TElasticity3DAnalytic::EDispx;
+        else if(input_asol == 1)
+            asol = TElasticity3DAnalytic::EDispy;
+        else if(input_asol == 2)
+            asol = TElasticity3DAnalytic::EYotov;
+        else
+            DebugStop();
+        
+        useReducedSpaceOnFace = atoi(argv[3]);
+        pordface = atoi(argv[4]);
+    }
+
+        
     
     std::string meshname;
     if(argc > 1){
-        meshname = "MHMesh_np" + std::string(argv[1]) + ".msh";
+//        meshname = "MHMesh_np" + std::string(argv[1]) + ".msh";
         meshname = "MHMeshEquiTet_np" + std::string(argv[1]) + ".msh";
     }
     else{
-        meshname = "MHMesh_np2.msh";
-        meshname = "MHMeshEquiTet_np2.msh";
+//        meshname = "MHMesh_np2.msh";
+        meshname = "MHMeshEquiTet_np1.msh";
     }
     
     int nrefinternal = 0;
@@ -150,9 +183,11 @@ int main(int argc, char *argv[])
     else if(DIM == 3) {
         TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
         elas->fE = 250.;//206.8150271873455;
-        elas->fPoisson = 0.25;//0.3040039545229857;
+//        elas->fPoisson = 0.25;//0.3040039545229857;
+        elas->fPoisson = 0.;
         elas->fProblemType = TElasticity3DAnalytic::EYotov;
 //        elas->fProblemType = TElasticity3DAnalytic::EDispx;
+        if(argc > 1) elas->fProblemType = asol;
         gAnalytic = elas;
         matelastic = new TPZMixedElasticityND(EDomain, elas->fE, elas->fPoisson, 0, 0, 0 /*planestress*/, DIM);
     }
@@ -189,7 +224,13 @@ int main(int argc, char *argv[])
     
     //Multiphysics mesh
     TPZMultiphysicsCompMesh *cmesh = hdivCreator.CreateApproximationSpace();
-//    IdentifyInteractionPlanes(cmesh, domain);
+    REAL smallestVoronoiInterfaceArea = -1.;
+    if(useReducedSpaceOnFace){
+        if(pordface > pord) DebugStop();
+        IdentifyInteractionPlanes(cmesh, domain, pord, smallestVoronoiInterfaceArea);
+    }
+    out << "smallestVoronoiInterfaceArea = " << smallestVoronoiInterfaceArea << std::endl;
+    
     Substructure(cmesh, domain);
 //    cmesh->LoadReferences();
 //    GroupElements(cmesh);
@@ -284,6 +325,13 @@ int main(int argc, char *argv[])
     std::cout.setf(std::ios::fixed);
     std::cout << "Errors = ";
     std::cout << Errors << std::endl;
+    out << "Errors = ";
+    out << Errors << std::endl;
+    out << "ErrorsFixedPrecision = ";
+    out.precision(15);
+    out.setf(std::ios::fixed);
+    out << Errors << std::endl;
+
     //  for (int i = 0; i < Errors.size(); i++) {
     //    std::cout << Errors[i] << std::endl;
     //  }
@@ -777,7 +825,7 @@ void MakeConnectsInternal(TPZSubCompMesh *submesh) {
 }
 
 // find the element groups which link to identical subdomain
-void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain) {
+void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain, const int pord, REAL& smallestVoronoiInterfaceArea) {
     std::map<std::pair<int,int>,TPZFaceDefinition> faces;
     cmesh->LoadReferences();
     int64_t nel = cmesh->NElements();
@@ -806,9 +854,12 @@ void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &doma
         faces[lr].fLeftRightDomain = lr;
         faces[lr].fElementList.push_back(cel);
     }
+    
+    smallestVoronoiInterfaceArea = std::numeric_limits<REAL>::max();
     for(auto &it : faces) {
         TPZFaceDefinition &face = it.second;
-        face.InitializeDataStructure();
+        face.InitializeDataStructure(pord);
+        if(face.fTotalArea < smallestVoronoiInterfaceArea) smallestVoronoiInterfaceArea = face.fTotalArea;
     }
     cmesh->ExpandSolution();
     for(auto &it : faces) {

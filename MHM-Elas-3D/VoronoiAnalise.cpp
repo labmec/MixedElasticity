@@ -114,10 +114,10 @@ static void ComputeAxes(TPZGeoEl *gel, TPZFMatrix<REAL> &axes) {
     gel->Jacobian(gradx, jac, axes, detjac, jacinv);
 }
 // Initialize geometric datastructure
-void TPZFaceDefinition::InitializeDataStructure()
+void TPZFaceDefinition::InitializeDataStructure(const int pord)
 {
     if(fElementList.size() == 0) DebugStop();
-    fPOrder = 1;
+    fPOrder = pord;
     TPZCompEl *cel = *fElementList.begin();
     TPZGeoEl *gel = cel->Reference();
     TPZGeoElSide gelside(gel);
@@ -154,4 +154,5 @@ void TPZFaceDefinition::ComputeCenter() {
         fCenter[i] = Xacc[i]/totalarea;
     }
     fScale = sqrt(totalarea);
+    fTotalArea = totalarea;
 }
