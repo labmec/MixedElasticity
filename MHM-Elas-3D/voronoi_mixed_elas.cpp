@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
     REAL smallestVoronoiInterfaceArea = -1.;
     if(useReducedSpaceOnFace){
         if(pordface > pord) DebugStop();
-        IdentifyInteractionPlanes(cmesh, domain, pord, smallestVoronoiInterfaceArea);
+        IdentifyInteractionPlanes(cmesh, domain, pordface, smallestVoronoiInterfaceArea);
     }
     out << "smallestVoronoiInterfaceArea = " << smallestVoronoiInterfaceArea << std::endl;
     
