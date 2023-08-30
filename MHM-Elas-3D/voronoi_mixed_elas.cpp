@@ -32,6 +32,7 @@
 #include "pzelementgroup.h"
 #include "pzcondensedcompel.h"
 #include "meshpath_config.h"
+#include "pzintel.h"
 
 #include "VoronoiAnalise.h"
 
@@ -82,6 +83,8 @@ void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &doma
 // analysol: type of analytical sol used for error computation (0 = EStretchX, 1 = EStretchY, 2 = EYotov)
 // useReducedSpaceOnFace: using reduced space on voronoi interface (true of false)
 // pordface: polynomial order of function defined on voronoi interface
+// pord: polynomial order of the approximation in general
+// pordskel: polynomial order of the skeleton
 int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
@@ -91,8 +94,8 @@ int main(int argc, char *argv[])
     
     TElasticity3DAnalytic::EDefState asol;
     bool useReducedSpaceOnFace = true;
-    int pordface = 0;
-    if (argc > 1 && argc != 5) DebugStop();
+    int pordface = 0, pord = 1, pordskel = 1;
+    if (argc > 1 && argc != 7) DebugStop();
     
     if (argc > 1) {
         out << "\n----------------- Starting new simulation -----------------" << std::endl;
@@ -112,6 +115,9 @@ int main(int argc, char *argv[])
         
         useReducedSpaceOnFace = atoi(argv[3]);
         pordface = atoi(argv[4]);
+        
+        pord = atoi(argv[5]);
+        pord = atoi(argv[6]);
     }
 
         
@@ -128,7 +134,6 @@ int main(int argc, char *argv[])
     
     int nrefinternal = 0;
     int nrefskel = 0;
-    const int pord = 1;
             
     // Creates/import a geometric mesh
     TPZGeoMesh* gmesh = nullptr;
@@ -230,6 +235,26 @@ int main(int argc, char *argv[])
         IdentifyInteractionPlanes(cmesh, domain, pordface, smallestVoronoiInterfaceArea);
     }
     out << "smallestVoronoiInterfaceArea = " << smallestVoronoiInterfaceArea << std::endl;
+    
+    // possibly decrease polynomial order of skeleton
+    if(pord != pordskel){
+        if(pordskel > pord) DebugStop(); // cannot happen!
+        for (int i = 0; i < cmesh->NElements(); i++) {
+            TPZCompEl* cel = cmesh->Element(i);
+            if(!cel) continue;
+            TPZGeoEl* gel = cel->Reference();
+            if (gel->MaterialId() != EMHM) continue;
+            
+            TPZInterpolatedElement* intel = dynamic_cast<TPZInterpolatedElement*>(cel);
+            if(intel) DebugStop();
+            
+            intel->PRefine(pordskel);
+        }
+    }
+    
+    // Loop over elements. Get the skeleton 2d ones, and change their porder
+    
+    
     
     Substructure(cmesh, domain);
 //    cmesh->LoadReferences();
