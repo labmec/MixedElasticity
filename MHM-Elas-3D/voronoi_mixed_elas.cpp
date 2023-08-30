@@ -99,9 +99,9 @@ int main(int argc, char *argv[])
     
     if (argc > 1) {
         out << "\n----------------- Starting new simulation -----------------" << std::endl;
-        out << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << std::endl;
+        out << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6] << std::endl;
         std::cout << "\n----------------- Starting new simulation -----------------" << std::endl;
-        std::cout << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << std::endl;
+        std::cout << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6] << std::endl;
                         
         const int input_asol = atoi(argv[2]);
         if (input_asol == 0)
