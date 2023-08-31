@@ -85,6 +85,7 @@ void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &doma
 // pordface: polynomial order of function defined on voronoi interface
 // pord: polynomial order of the approximation in general
 // pordskel: polynomial order of the skeleton
+// nrefint: number of internal refinements
 int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
@@ -95,13 +96,14 @@ int main(int argc, char *argv[])
     TElasticity3DAnalytic::EDefState asol;
     bool useReducedSpaceOnFace = true;
     int pordface = 0, pord = 1, pordskel = 1;
-    if (argc > 1 && argc != 7) DebugStop();
+    int nrefinternal = 0;
+    if (argc > 1 && argc != 8) DebugStop();
     
     if (argc > 1) {
         out << "\n----------------- Starting new simulation -----------------" << std::endl;
-        out << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6] << std::endl;
+        out << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6] << " | nrefint = " << argv[7] << std::endl;
         std::cout << "\n----------------- Starting new simulation -----------------" << std::endl;
-        std::cout << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6] << std::endl;
+        std::cout << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6]  << " | nrefint = " << argv[7] << std::endl;
                         
         const int input_asol = atoi(argv[2]);
         if (input_asol == 0)
@@ -118,6 +120,7 @@ int main(int argc, char *argv[])
         
         pord = atoi(argv[5]);
         pordskel = atoi(argv[6]);
+        nrefinternal = atoi(argv[7]);
     }
 
         
@@ -131,8 +134,7 @@ int main(int argc, char *argv[])
 //        meshname = "MHMesh_np2.msh";
         meshname = "MHMeshEquiTet_np1.msh";
     }
-    
-    int nrefinternal = 0;
+        
     int nrefskel = 0;
             
     // Creates/import a geometric mesh
