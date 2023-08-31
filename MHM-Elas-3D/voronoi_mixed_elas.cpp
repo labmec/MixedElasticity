@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         pordface = atoi(argv[4]);
         
         pord = atoi(argv[5]);
-        pord = atoi(argv[6]);
+        pordskel = atoi(argv[6]);
     }
 
         
@@ -228,7 +228,41 @@ int main(int argc, char *argv[])
     hdivCreator.InsertMaterialObject(MHM);
     
     //Multiphysics mesh
-    TPZMultiphysicsCompMesh *cmesh = hdivCreator.CreateApproximationSpace();
+//    TPZMultiphysicsCompMesh *cmesh = hdivCreator.CreateApproximationSpace();
+    // Create by myself
+    TPZMultiphysicsCompMesh *cmeshmulti = nullptr;
+    {
+        std::cout << "\n---------------- Creating Space -----------------" << std::endl;
+        hdivCreator.CheckSetupConsistency();
+        hdivCreator.SetMeshElementType();
+
+        int lagLevelCounter = 1;
+        TPZManVector<TPZCompMesh*,7> meshvec(5);
+        hdivCreator.CreateAtomicMeshes(meshvec,lagLevelCounter);
+        
+        // possibly decrease polynomial order of skeleton
+        TPZCompMesh* cmeshflux = meshvec[0];
+        if(pord != pordskel){
+            if(pordskel > pord) DebugStop(); // cannot happen!
+            for (int i = 0; i < cmeshflux->NElements(); i++) {
+                TPZCompEl* cel = cmeshflux->Element(i);
+                if(!cel) continue;
+                TPZGeoEl* gel = cel->Reference();
+                if (gel->MaterialId() != EMHM) continue;
+                
+                TPZInterpolatedElement* intel = dynamic_cast<TPZInterpolatedElement*>(cel);
+                if(!intel) DebugStop();
+                
+                intel->PRefine(pordskel);
+            }
+        }
+        cmeshflux->ExpandSolution();
+        hdivCreator.CreateMultiPhysicsMesh(meshvec,lagLevelCounter,cmeshmulti);
+    }
+    TPZMultiphysicsCompMesh *cmesh = cmeshmulti;
+    
+    
+    
     REAL smallestVoronoiInterfaceArea = -1.;
     if(useReducedSpaceOnFace){
         if(pordface > pord) DebugStop();
@@ -236,21 +270,7 @@ int main(int argc, char *argv[])
     }
     out << "smallestVoronoiInterfaceArea = " << smallestVoronoiInterfaceArea << std::endl;
     
-    // possibly decrease polynomial order of skeleton
-    if(pord != pordskel){
-        if(pordskel > pord) DebugStop(); // cannot happen!
-        for (int i = 0; i < cmesh->NElements(); i++) {
-            TPZCompEl* cel = cmesh->Element(i);
-            if(!cel) continue;
-            TPZGeoEl* gel = cel->Reference();
-            if (gel->MaterialId() != EMHM) continue;
-            
-            TPZInterpolatedElement* intel = dynamic_cast<TPZInterpolatedElement*>(cel);
-            if(intel) DebugStop();
-            
-            intel->PRefine(pordskel);
-        }
-    }
+
     
     // Loop over elements. Get the skeleton 2d ones, and change their porder
     
