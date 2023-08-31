@@ -33,6 +33,7 @@
 #include "pzcondensedcompel.h"
 #include "meshpath_config.h"
 #include "pzintel.h"
+#include <algorithm>
 
 #include "VoronoiAnalise.h"
 
@@ -78,14 +79,38 @@ void CondenseElements(TPZCompMesh *submesh);
 // find the element groups which link to identical subdomain
 void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain, const int pord, REAL& smallestVoronoiInterfaceArea);
 
-// argv parameters, when used are, in this order:
+class InputParser{
+    public:
+        InputParser (int &argc, char **argv){
+            for (int i=1; i < argc; ++i)
+                this->tokens.push_back(std::string(argv[i]));
+        }
+        const std::string& getCmdOption(const std::string &option) const{
+            std::vector<std::string>::const_iterator itr;
+            itr =  std::find(this->tokens.begin(), this->tokens.end(), option);
+            if (itr != this->tokens.end() && ++itr != this->tokens.end()){
+                return *itr;
+            }
+            static const std::string empty_string("");
+            return empty_string;
+        }
+        bool cmdOptionExists(const std::string &option) const{
+            return std::find(this->tokens.begin(), this->tokens.end(), option)
+                   != this->tokens.end();
+        }
+    private:
+        std::vector <std::string> tokens;
+};
+
+// argv parameters:
+
 // np: number of points used to create the voronoi mesh (1 to 5)
 // analysol: type of analytical sol used for error computation (0 = EStretchX, 1 = EStretchY, 2 = EYotov)
-// useReducedSpaceOnFace: using reduced space on voronoi interface (true of false)
-// pordface: polynomial order of function defined on voronoi interface
 // pord: polynomial order of the approximation in general
 // pordskel: polynomial order of the skeleton
 // nrefint: number of internal refinements
+// useredspaceface: using reduced space on voronoi interface (true of false)
+// pordface: polynomial order of function defined on voronoi interface
 int main(int argc, char *argv[])
 {
 #ifdef PZ_LOG
@@ -97,15 +122,18 @@ int main(int argc, char *argv[])
     bool useReducedSpaceOnFace = true;
     int pordface = 0, pord = 1, pordskel = 1;
     int nrefinternal = 0;
-    if (argc > 1 && argc != 8) DebugStop();
+    std::string voronoi_np = "1";
+//    if (argc > 1 && argc != 15) DebugStop();
     
     if (argc > 1) {
-        out << "\n----------------- Starting new simulation -----------------" << std::endl;
-        out << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6] << " | nrefint = " << argv[7] << std::endl;
-        std::cout << "\n----------------- Starting new simulation -----------------" << std::endl;
-        std::cout << "MHMeshEquiTet_np" << argv[1] << " | AnalySol = " << argv[2] << " | useReducedSpaceOnFace = " << argv[3] << " | pordface = " << argv[4] << " | pord = " << argv[5] << " | pordskel = " << argv[6]  << " | nrefint = " << argv[7] << std::endl;
-                        
-        const int input_asol = atoi(argv[2]);
+        InputParser input(argc, argv);
+//        if(!input.cmdOptionExists("-np") || !input.cmdOptionExists("-analysol") || !input.cmdOptionExists("-pord") ||
+//           !input.cmdOptionExists("-pordskel") || !input.cmdOptionExists("-nrefint")){
+//            DebugStop();
+//        }
+        voronoi_np = input.getCmdOption("-np");
+        const int input_asol = stoi(input.getCmdOption("-analysol"));
+        
         if (input_asol == 0)
             asol = TElasticity3DAnalytic::EDispx;
         else if(input_asol == 1)
@@ -115,20 +143,27 @@ int main(int argc, char *argv[])
         else
             DebugStop();
         
-        useReducedSpaceOnFace = atoi(argv[3]);
-        pordface = atoi(argv[4]);
+        if(input.cmdOptionExists("-useredspaceface")) useReducedSpaceOnFace = stoi(input.getCmdOption("-useredspaceface"));
+        if(input.cmdOptionExists("-pordface")) pordface = stoi(input.getCmdOption("-pordface"));
         
-        pord = atoi(argv[5]);
-        pordskel = atoi(argv[6]);
-        nrefinternal = atoi(argv[7]);
+        if(input.cmdOptionExists("-pord")) pord = stoi(input.getCmdOption("-pord"));
+        if(input.cmdOptionExists("-pordskel")) pordskel = stoi(input.getCmdOption("-pordskel"));
+        if(input.cmdOptionExists("-nrefint")) nrefinternal = stoi(input.getCmdOption("-nrefint"));
+        
+        out << "\n----------------- Starting new simulation -----------------" << std::endl;
+        out << "MHMeshEquiTet_np" << voronoi_np << " | AnalySol = " << input_asol << " | useReducedSpaceOnFace = " << useReducedSpaceOnFace << " | pordface = " << pordface << " | pord = " << pord  << " | pordskel = " << pordskel << " | nrefint = " << nrefinternal << std::endl;
+        std::cout << "\n----------------- Starting new simulation -----------------" << std::endl;
+        std::cout << "MHMeshEquiTet_np" << voronoi_np << " | AnalySol = " << input_asol << " | useReducedSpaceOnFace = " << useReducedSpaceOnFace << " | pordface = " << pordface << " | pord = " << pord << " | pordskel = " << pordskel  << " | nrefint = " << nrefinternal << std::endl;
+                            
+
     }
 
         
     
     std::string meshname;
     if(argc > 1){
-//        meshname = "MHMesh_np" + std::string(argv[1]) + ".msh";
-        meshname = "MHMeshEquiTet_np" + std::string(argv[1]) + ".msh";
+//        meshname = "MHMesh_np" + voronoi_np + ".msh";
+        meshname = "MHMeshEquiTet_np" + voronoi_np + ".msh";
     }
     else{
 //        meshname = "MHMesh_np2.msh";
