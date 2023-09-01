@@ -279,6 +279,8 @@ int main(int argc, char *argv[])
         
         // possibly decrease polynomial order of skeleton
         TPZCompMesh* cmeshflux = meshvec[0];
+        gmesh->ResetReference();
+        cmeshflux->LoadReferences();
         if(pord != pordskel){
             if(pordskel > pord) DebugStop(); // cannot happen!
             for (int i = 0; i < cmeshflux->NElements(); i++) {
