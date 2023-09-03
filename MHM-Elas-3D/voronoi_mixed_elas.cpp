@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
     std::ofstream out("voronoi-results.txt",std::ios::app);
     
     TElasticity3DAnalytic::EDefState asol;
-    bool useReducedSpaceOnFace = true;
+    bool useReducedSpaceOnFace = false;
     int pordface = 0, pord = 1, pordskel = 1;
     int nrefinternal = 0;
     std::string voronoi_np = "1";
@@ -224,9 +224,9 @@ int main(int argc, char *argv[])
     }
     else if(DIM == 3) {
         TElasticity3DAnalytic *elas = new TElasticity3DAnalytic;
-        elas->fE = 250.;//206.8150271873455;
-//        elas->fPoisson = 0.25;//0.3040039545229857;
-        elas->fPoisson = 0.;
+        elas->fE = 250.;
+        elas->fPoisson = 0.25;
+//        elas->fPoisson = 0.;
         elas->fProblemType = TElasticity3DAnalytic::EYotov;
 //        elas->fProblemType = TElasticity3DAnalytic::EDispx;
         if(argc > 1) elas->fProblemType = asol;
