@@ -109,6 +109,7 @@ class InputParser{
 // pord: polynomial order of the approximation in general
 // pordskel: polynomial order of the skeleton
 // nrefint: number of internal refinements
+// nrefskel: number of skeleton refinements
 // useredspaceface: using reduced space on voronoi interface (true of false)
 // pordface: polynomial order of function defined on voronoi interface
 int main(int argc, char *argv[])
@@ -122,6 +123,7 @@ int main(int argc, char *argv[])
     bool useReducedSpaceOnFace = false;
     int pordface = 0, pord = 1, pordskel = 1;
     int nrefinternal = 0;
+    int nrefskel = 0;
     std::string voronoi_np = "1";
 //    if (argc > 1 && argc != 15) DebugStop();
     
@@ -149,11 +151,12 @@ int main(int argc, char *argv[])
         if(input.cmdOptionExists("-pord")) pord = stoi(input.getCmdOption("-pord"));
         if(input.cmdOptionExists("-pordskel")) pordskel = stoi(input.getCmdOption("-pordskel"));
         if(input.cmdOptionExists("-nrefint")) nrefinternal = stoi(input.getCmdOption("-nrefint"));
+        if(input.cmdOptionExists("-nrefskel")) nrefskel = stoi(input.getCmdOption("-nrefskel"));
         
         out << "\n----------------- Starting new simulation -----------------" << std::endl;
-        out << "MHMeshEquiTet_np" << voronoi_np << " | AnalySol = " << input_asol << " | useReducedSpaceOnFace = " << useReducedSpaceOnFace << " | pordface = " << pordface << " | pord = " << pord  << " | pordskel = " << pordskel << " | nrefint = " << nrefinternal << std::endl;
+        out << "MHMeshEquiTet_np" << voronoi_np << " | AnalySol = " << input_asol << " | useReducedSpaceOnFace = " << useReducedSpaceOnFace << " | pordface = " << pordface << " | pord = " << pord  << " | pordskel = " << pordskel << " | nrefint = " << nrefinternal << " | nrefskel = " << nrefskel << std::endl;
         std::cout << "\n----------------- Starting new simulation -----------------" << std::endl;
-        std::cout << "MHMeshEquiTet_np" << voronoi_np << " | AnalySol = " << input_asol << " | useReducedSpaceOnFace = " << useReducedSpaceOnFace << " | pordface = " << pordface << " | pord = " << pord << " | pordskel = " << pordskel  << " | nrefint = " << nrefinternal << std::endl;
+        std::cout << "MHMeshEquiTet_np" << voronoi_np << " | AnalySol = " << input_asol << " | useReducedSpaceOnFace = " << useReducedSpaceOnFace << " | pordface = " << pordface << " | pord = " << pord << " | pordskel = " << pordskel  << " | nrefint = " << nrefinternal << " | nrefskel = " << nrefskel << std::endl;
                             
 
     }
@@ -169,8 +172,6 @@ int main(int argc, char *argv[])
 //        meshname = "MHMesh_np2.msh";
         meshname = "MHMeshEquiTet_np1.msh";
     }
-        
-    int nrefskel = 0;
             
     // Creates/import a geometric mesh
     TPZGeoMesh* gmesh = nullptr;
