@@ -137,11 +137,13 @@ int main(int argc, char *argv[])
         const int input_asol = stoi(input.getCmdOption("-analysol"));
         
         if (input_asol == 0)
-            asol = TElasticity3DAnalytic::EDispx;
+            asol = TElasticity3DAnalytic::EStretchx;
         else if(input_asol == 1)
-            asol = TElasticity3DAnalytic::EDispy;
+            asol = TElasticity3DAnalytic::EStretchy;
         else if(input_asol == 2)
             asol = TElasticity3DAnalytic::EYotov;
+        else if(input_asol == 3)
+            asol = TElasticity3DAnalytic::EStretchz;
         else
             DebugStop();
         
