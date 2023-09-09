@@ -31,6 +31,7 @@
 #include "pzsubcmesh.h"
 #include "pzelementgroup.h"
 #include "pzcondensedcompel.h"
+#include "pzintel.h"
 #include "meshpath_config.h"
 #include "pzintel.h"
 #include <algorithm>
@@ -76,6 +77,11 @@ void GroupElements(TPZCompMesh *submesh);
 
 void CondenseElements(TPZCompMesh *submesh);
 
+void AdjustSkelSideOrient(TPZCompMesh *hdivmesh);
+
+// check if the restraints are consistent
+void CheckRestraintConsistencies(TPZCompMesh *hdivmesh, TPZVec<int> &domain);
+
 // find the element groups which link to identical subdomain
 void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain, const int pord, REAL& smallestVoronoiInterfaceArea);
 
@@ -119,7 +125,7 @@ int main(int argc, char *argv[])
 #endif
     std::ofstream out("voronoi-results.txt",std::ios::app);
     
-    TElasticity3DAnalytic::EDefState asol;
+    TElasticity3DAnalytic::EDefState asol = TElasticity3DAnalytic::EDispx;
     bool useReducedSpaceOnFace = false;
     int pordface = 0, pord = 1, pordskel = 1;
     int nrefinternal = 0;
@@ -171,9 +177,11 @@ int main(int argc, char *argv[])
         meshname = "MHMeshEquiTet_np" + voronoi_np + ".msh";
     }
     else{
-//        meshname = "MHMesh_np2.msh";
         meshname = "MHMeshEquiTet_np1.msh";
+        meshname = "MHMeshEquiTet_np2.msh";
+        meshname = "MHMesh_np2.msh";
     }
+    
             
     // Creates/import a geometric mesh
     TPZGeoMesh* gmesh = nullptr;
@@ -230,9 +238,8 @@ int main(int argc, char *argv[])
         elas->fE = 250.;
         elas->fPoisson = 0.25;
 //        elas->fPoisson = 0.;
-        elas->fProblemType = TElasticity3DAnalytic::EYotov;
 //        elas->fProblemType = TElasticity3DAnalytic::EDispx;
-        if(argc > 1) elas->fProblemType = asol;
+        elas->fProblemType = asol;
         gAnalytic = elas;
         matelastic = new TPZMixedElasticityND(EDomain, elas->fE, elas->fPoisson, 0, 0, 0 /*planestress*/, DIM);
     }
@@ -280,14 +287,20 @@ int main(int argc, char *argv[])
         TPZManVector<TPZCompMesh*,7> meshvec(5);
         hdivCreator.CreateAtomicMeshes(meshvec,lagLevelCounter);
         
+        {
+            TPZCompMesh *hdivmesh = meshvec[0];
+            if(nrefinternal == 0) AdjustSkelSideOrient(hdivmesh);
+            CheckRestraintConsistencies(hdivmesh, domain);
+        }
+
         // possibly decrease polynomial order of skeleton
         TPZCompMesh* cmeshflux = meshvec[0];
         gmesh->ResetReference();
         cmeshflux->LoadReferences();
         if(pord != pordskel){
             if(pordskel > pord) DebugStop(); // cannot happen!
-            for (int i = 0; i < cmeshflux->NElements(); i++) {
-                TPZCompEl* cel = cmeshflux->Element(i);
+            for (int el = 0; el < cmeshflux->NElements(); el++) {
+                TPZCompEl* cel = cmeshflux->Element(el);
                 if(!cel) continue;
                 TPZGeoEl* gel = cel->Reference();
                 if (gel->MaterialId() != EMHM) continue;
@@ -296,6 +309,12 @@ int main(int argc, char *argv[])
                 if(!intel) DebugStop();
                 
                 intel->PRefine(pordskel);
+            }
+
+            {
+                TPZCompMesh *hdivmesh = meshvec[0];
+//                AdjustSkelSideOrient(hdivmesh);
+                CheckRestraintConsistencies(hdivmesh, domain);
             }
         }
         cmeshflux->ExpandSolution();
@@ -318,6 +337,7 @@ int main(int argc, char *argv[])
     
     
     
+//    IdentifyInteractionPlanes(cmesh, domain);
     Substructure(cmesh, domain);
 //    cmesh->LoadReferences();
 //    GroupElements(cmesh);
@@ -384,6 +404,7 @@ int main(int argc, char *argv[])
     std::cout << "------- Starting PostProc Error -------" << std::endl;
     an.SetExact(gAnalytic->ExactSolution());
     an.SetThreadsForError(global_nthread);
+    an.SetThreadsForError(0);
     std::ofstream ErroOut("myerrors.txt", std::ios::app);
     TPZMaterial *mat = cmesh->FindMaterial(EDomain);
     TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
@@ -958,3 +979,233 @@ void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &doma
     cmesh->CleanUpUnconnectedNodes();
 }
 
+// check if the restraints are consistent
+void CheckRestraintConsistencies(TPZCompMesh *hdivmesh, TPZVec<int> &domain) {
+    int64_t nel = hdivmesh->NElements();
+    hdivmesh->Reference()->ResetReference();
+    hdivmesh->LoadReferences();
+    TPZFMatrix<STATE> &sol = hdivmesh->Solution();
+    sol.Zero();
+    for (int64_t el = 0; el<nel; el++) {
+        TPZCompEl *celskel = hdivmesh->Element(el);
+        TPZGeoEl *gelskel = celskel->Reference();
+        if(gelskel->MaterialId() == EMHM) {
+            TPZFNMatrix<9,REAL> gradx(3,2),jac(2,2),jacinv(2,2),axes(2,3);
+            REAL detjac;
+            TPZManVector<REAL,2> ksi(2);
+            gelskel->CenterPoint(gelskel->NSides()-1, ksi);
+            gelskel->GradX(ksi, gradx);
+            gelskel->Jacobian(gradx, jac, axes, detjac, jacinv);
+            TPZManVector<REAL,3> skelnormal(3);
+            for (int i = 0; i<3; i++) {
+                int j = (i+1)%3;
+                int k = (i+2)%3;
+                skelnormal[i] = axes(0,j)*axes(1,k)-axes(0,k)*axes(1,j);
+            }
+            TPZInterpolatedElement *celskelint = dynamic_cast<TPZInterpolatedElement *>(celskel);
+            int skelsideorient = celskelint->GetSideOrient(gelskel->NSides()-1);
+            std::cout << "skel " << el << " side orient " << skelsideorient << std::endl;
+            TPZGeoElSide gelside(gelskel);
+            REAL skelarea = gelside.Area();
+            TPZStack<TPZCompElSide> elsidevec;
+            int onlyinterpolated = 1;
+            int removeduplicated = 0;
+            gelside.HigherLevelCompElementList2(elsidevec, onlyinterpolated, removeduplicated);
+            gelside.EqualLevelCompElementList(elsidevec, onlyinterpolated, removeduplicated);
+            REAL smallarea[2] = {0.};
+            // separate the smaller neighbours in two sets
+            std::list<TPZCompElSide> twolists[2];
+
+            int nelside = elsidevec.NElements();
+            for (int is = 0; is<nelside; is++) {
+                auto celside = elsidevec[is];
+                auto smallgelside = celside.Reference();
+                if(smallgelside.Dimension() != 2) continue;
+                TPZInterpolatedElement *smallintel = dynamic_cast<TPZInterpolatedElement *>(celside.Element());
+                int sideorient = smallintel->GetSideOrient(celside.Side());
+                TPZManVector<REAL,3> smallnormal(3);
+                TPZManVector<REAL,3> smallksi(2);
+                smallgelside.CenterPoint(smallksi);
+                smallgelside.Normal(smallksi, smallnormal);
+                REAL inner = 0.;
+                for(int i=0; i<3; i++) inner += skelnormal[i]*smallnormal[i];
+                if(fabs(fabs(inner)-1.) > 1.e-8) DebugStop();
+                std::cout << "inner " << inner << " small sideorient " << sideorient << " skel orient " << skelsideorient << std::endl;
+                if(inner < 0.) {
+                    twolists[0].push_back(celside);
+                    smallarea[0] += smallgelside.Area();
+                } else {
+                    twolists[1].push_back(celside);
+                    smallarea[1] += smallgelside.Area();
+                }
+            }
+            if(fabs(smallarea[0]-skelarea) > 1.e-9 ) DebugStop();
+            if(fabs(smallarea[1]-skelarea) > 1.e-9 ) DebugStop();
+            std::set<int> alldom;
+            for (int is = 0; is<nelside; is++) {
+                auto celside = elsidevec[is];
+                auto smallgelside = celside.Reference();
+                if(smallgelside.Dimension() != 2) continue;
+                int64_t index = smallgelside.Element()->Index();
+                int dom = domain[index];
+                alldom.insert(dom);
+            }
+            if(alldom.size() != 2) DebugStop();
+            // the normal component of one of the two lists matches the current normal
+            TPZConnect &skelconnect = celskel->Connect(0);
+            int64_t seqnum = skelconnect.SequenceNumber();
+            int blsize = hdivmesh->Block().Size(seqnum);
+            int64_t pos = hdivmesh->Block().Position(seqnum);
+            TPZIntPoints *intrule = gelskel->CreateSideIntegrationRule(gelskel->NSides()-1, 3);
+            int npoints = intrule->NPoints();
+            REAL weight;
+            TPZManVector<REAL,2> point(2,0.);
+            TPZManVector<REAL,9> sol3d(9), point3d(3);
+            TPZManVector<REAL,3> solskel(3);
+            TPZManVector<REAL,3> sol3dnormal(3);
+            for(int idof = 0; idof<blsize; idof++) {
+                sol(pos+idof,0) = 1.;
+                // update the dependent connect values
+                for(auto &it : twolists[0]) {
+                    int wrong = 0;
+                    it.Element()->LoadSolution();
+                    TPZGeoEl *gelsmall = it.Element()->Reference();
+                    TPZTransform<> trskel = gelsmall->ComputeParamTrans(gelskel, gelskel->NSides()-1, it.Side());
+                    TPZTransform<> trsmall = gelsmall->SideToSideTransform(it.Side(), gelsmall->NSides()-1);
+                    for(int ip = 0; ip < npoints; ip++) {
+                        intrule->Point(ip, point, weight);
+                        TPZManVector<REAL,2> pointskel(2);
+                        trskel.Apply(point, pointskel);
+                        trsmall.Apply(point, point3d);
+                        celskel->Solution(pointskel, 0, solskel);
+                        it.Element()->Solution(point3d, 0, sol3d);
+                        sol3dnormal.Fill(0.);
+                        for(int i = 0; i<3; i++) for(int j=0; j<3; j++) {
+                            sol3dnormal[i] += skelnormal[j]*sol3d[i*3+j];
+                        }
+                        for(int i=0; i<3; i++) {
+                            REAL diff = fabs(sol3dnormal[i]-solskel[i]);
+                            if(fabs(diff) > 1.e-7) {
+                                wrong++;
+                                std::cout <<  "oposite normal sol3dnormal " << sol3dnormal << " solskel " << solskel << std::endl;
+                            }
+                        }
+                    }
+                    if(wrong) {
+                        TPZInterpolatedElement *intel = dynamic_cast<TPZInterpolatedElement *>(it.Element());
+                        std::cout << "small index " << intel->Index() << " large index " << el << std::endl;
+                        TPZConnect &c = intel->TPZInterpolationSpace::SideConnect(0, it.Side());
+                        std::cout << "small side orient " << intel->GetSideOrient(it.Side()) << " large side orient " << skelsideorient << std::endl;
+                        std::cout << "connect index " << intel->SideConnectIndex(0, it.Side()) << std::endl;
+                        c.Print(*hdivmesh);
+                        wrong = 0;
+                    }
+                }
+                for(auto &it : twolists[1]) {
+                    int wrong = 0;
+                    it.Element()->LoadSolution();
+                    TPZGeoEl *gelsmall = it.Element()->Reference();
+                    TPZTransform<> trskel = gelsmall->ComputeParamTrans(gelskel, gelskel->NSides()-1, it.Side());
+                    TPZTransform<> trsmall = gelsmall->SideToSideTransform(it.Side(), gelsmall->NSides()-1);
+                    for(int ip = 0; ip < npoints; ip++) {
+                        intrule->Point(ip, point, weight);
+                        TPZManVector<REAL,2> pointskel(2);
+                        trskel.Apply(point, pointskel);
+                        trsmall.Apply(point, point3d);
+                        celskel->Solution(pointskel, 0, solskel);
+                        it.Element()->Solution(point3d, 0, sol3d);
+                        sol3dnormal.Fill(0.);
+                        for(int i = 0; i<3; i++) for(int j=0; j<3; j++) {
+                            sol3dnormal[i] += skelnormal[j]*sol3d[i*3+j];
+                        }
+                        for(int i=0; i<3; i++) {
+                            REAL diff = fabs(sol3dnormal[i]-solskel[i]);
+                            if(fabs(diff) > 1.e-7) {
+                                std::cout <<  "aligned normal sol3dnormal " << sol3dnormal << " solskel " << solskel << std::endl;
+                                wrong++;
+                            }
+                        }
+                    }
+                    if(wrong) {
+                        TPZInterpolatedElement *intel = dynamic_cast<TPZInterpolatedElement *>(it.Element());
+                        std::cout << "small index " << intel->Index() << " large index " << el << std::endl;
+                        TPZConnect &c = intel->TPZInterpolationSpace::SideConnect(0, it.Side());
+                        std::cout << "connect index " << intel->SideConnectIndex(0, it.Side()) << std::endl;
+                        c.Print(*hdivmesh);
+                        wrong = 0;
+                    }
+                }
+            }
+            delete intrule;
+        }
+    }
+}
+
+void AdjustSkelSideOrient(TPZCompMesh *hdivmesh) {
+    int64_t nel = hdivmesh->NElements();
+    hdivmesh->Reference()->ResetReference();
+    hdivmesh->LoadReferences();
+    TPZFMatrix<STATE> &sol = hdivmesh->Solution();
+    sol.Zero();
+    for (int64_t el = 0; el<nel; el++) {
+        TPZCompEl *celskel = hdivmesh->Element(el);
+        TPZGeoEl *gelskel = celskel->Reference();
+        if(gelskel->MaterialId() == EMHM) {
+            TPZFNMatrix<9,REAL> gradx(3,2),jac(2,2),jacinv(2,2),axes(2,3);
+            REAL detjac;
+            TPZManVector<REAL,2> ksi(2);
+            gelskel->CenterPoint(gelskel->NSides()-1, ksi);
+            gelskel->GradX(ksi, gradx);
+            gelskel->Jacobian(gradx, jac, axes, detjac, jacinv);
+            TPZManVector<REAL,3> skelnormal(3);
+            for (int i = 0; i<3; i++) {
+                int j = (i+1)%3;
+                int k = (i+2)%3;
+                skelnormal[i] = axes(0,j)*axes(1,k)-axes(0,k)*axes(1,j);
+            }
+            TPZInterpolatedElement *celskelint = dynamic_cast<TPZInterpolatedElement *>(celskel);
+            int skelsideorient = celskelint->GetSideOrient(gelskel->NSides()-1);
+//            std::cout << "skel " << el << " side orient " << skelsideorient << std::endl;
+            TPZGeoElSide gelside(gelskel);
+            REAL skelarea = gelside.Area();
+            TPZStack<TPZCompElSide> elsidevec;
+            int onlyinterpolated = 1;
+            int removeduplicated = 0;
+            gelside.HigherLevelCompElementList2(elsidevec, onlyinterpolated, removeduplicated);
+            gelside.EqualLevelCompElementList(elsidevec, onlyinterpolated, removeduplicated);
+            REAL smallarea[2] = {0.};
+            // separate the smaller neighbours in two sets
+            std::list<TPZCompElSide> twolists[2];
+            
+            int nelside = elsidevec.NElements();
+            for (int is = 0; is<nelside; is++) {
+                auto celside = elsidevec[is];
+                auto smallgelside = celside.Reference();
+                if(smallgelside.Dimension() != 2) continue;
+                TPZInterpolatedElement *smallintel = dynamic_cast<TPZInterpolatedElement *>(celside.Element());
+                int sideorient = smallintel->GetSideOrient(celside.Side());
+                TPZManVector<REAL,3> smallnormal(3);
+                TPZManVector<REAL,3> smallksi(2);
+                smallgelside.CenterPoint(smallksi);
+                smallgelside.Normal(smallksi, smallnormal);
+                REAL inner = 0.;
+                for(int i=0; i<3; i++) inner += skelnormal[i]*smallnormal[i];
+                if(fabs(fabs(inner)-1.) > 1.e-8) DebugStop();
+                
+//                std::cout << "inner " << inner << " sideorient " << sideorient << std::endl;
+                if(inner < 0.) {
+                    if(skelsideorient != -sideorient) {
+                        std::cout << "Adjusting skel " << el << " side orientation to " << -sideorient << std::endl;
+                    }
+                    celskelint->SetSideOrient(gelskel->NSides()-1, -sideorient);
+                } else {
+                    if(skelsideorient != sideorient) {
+                        std::cout << "Adjusting skel " << el << " side orientation to " << sideorient << std::endl;
+                    }
+                    celskelint->SetSideOrient(gelskel->NSides()-1, sideorient);
+                }
+                break;
+            }
+        }
+    }
+}
