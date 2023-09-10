@@ -404,7 +404,6 @@ int main(int argc, char *argv[])
     std::cout << "------- Starting PostProc Error -------" << std::endl;
     an.SetExact(gAnalytic->ExactSolution());
     an.SetThreadsForError(global_nthread);
-    an.SetThreadsForError(0);
     std::ofstream ErroOut("myerrors.txt", std::ios::app);
     TPZMaterial *mat = cmesh->FindMaterial(EDomain);
     TPZMatErrorCombinedSpaces<STATE> *materr = dynamic_cast<TPZMatErrorCombinedSpaces<STATE>*>(mat);
