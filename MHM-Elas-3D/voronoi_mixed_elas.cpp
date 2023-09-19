@@ -35,6 +35,7 @@
 #include "meshpath_config.h"
 #include "pzintel.h"
 #include <algorithm>
+#include "pzvec_extras.h"
 
 #include "VoronoiAnalise.h"
 
@@ -84,6 +85,8 @@ void CheckRestraintConsistencies(TPZCompMesh *hdivmesh, TPZVec<int> &domain);
 
 // find the element groups which link to identical subdomain
 void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &domain, const int pord, REAL& smallestVoronoiInterfaceArea);
+
+void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* analy);
 
 class InputParser{
     public:
@@ -245,6 +248,7 @@ int main(int argc, char *argv[])
     }
     
     
+    
     //Insert Materials
     matelastic->SetExactSol(gAnalytic->ExactSolution(),4);
     matelastic->SetForcingFunction(gAnalytic->ForceFunc(), 3);
@@ -391,6 +395,11 @@ int main(int argc, char *argv[])
         }
     }
     cmesh->TransferMultiphysicsSolution();
+    
+    // Now, with the solution, let's check if the normal fluxes at
+    // the skeleton are very close to what we get from the exact solution by doing sigma n
+    CheckNormalFluxes(cmesh,gAnalytic);
+    
 #ifdef PZDEBUG
     {
         std::string txt = "multiphysicsmesh.txt";
@@ -1003,7 +1012,7 @@ void CheckRestraintConsistencies(TPZCompMesh *hdivmesh, TPZVec<int> &domain) {
             }
             TPZInterpolatedElement *celskelint = dynamic_cast<TPZInterpolatedElement *>(celskel);
             int skelsideorient = celskelint->GetSideOrient(gelskel->NSides()-1);
-            std::cout << "skel " << el << " side orient " << skelsideorient << std::endl;
+//            std::cout << "skel " << el << " side orient " << skelsideorient << std::endl;
             TPZGeoElSide gelside(gelskel);
             REAL skelarea = gelside.Area();
             TPZStack<TPZCompElSide> elsidevec;
@@ -1029,7 +1038,7 @@ void CheckRestraintConsistencies(TPZCompMesh *hdivmesh, TPZVec<int> &domain) {
                 REAL inner = 0.;
                 for(int i=0; i<3; i++) inner += skelnormal[i]*smallnormal[i];
                 if(fabs(fabs(inner)-1.) > 1.e-8) DebugStop();
-                std::cout << "inner " << inner << " small sideorient " << sideorient << " skel orient " << skelsideorient << std::endl;
+//                std::cout << "inner " << inner << " small sideorient " << sideorient << " skel orient " << skelsideorient << std::endl;
                 if(inner < 0.) {
                     twolists[0].push_back(celside);
                     smallarea[0] += smallgelside.Area();
@@ -1092,10 +1101,10 @@ void CheckRestraintConsistencies(TPZCompMesh *hdivmesh, TPZVec<int> &domain) {
                     }
                     if(wrong) {
                         TPZInterpolatedElement *intel = dynamic_cast<TPZInterpolatedElement *>(it.Element());
-                        std::cout << "small index " << intel->Index() << " large index " << el << std::endl;
+//                        std::cout << "small index " << intel->Index() << " large index " << el << std::endl;
                         TPZConnect &c = intel->TPZInterpolationSpace::SideConnect(0, it.Side());
-                        std::cout << "small side orient " << intel->GetSideOrient(it.Side()) << " large side orient " << skelsideorient << std::endl;
-                        std::cout << "connect index " << intel->SideConnectIndex(0, it.Side()) << std::endl;
+//                        std::cout << "small side orient " << intel->GetSideOrient(it.Side()) << " large side orient " << skelsideorient << std::endl;
+//                        std::cout << "connect index " << intel->SideConnectIndex(0, it.Side()) << std::endl;
                         c.Print(*hdivmesh);
                         wrong = 0;
                     }
@@ -1194,12 +1203,12 @@ void AdjustSkelSideOrient(TPZCompMesh *hdivmesh) {
 //                std::cout << "inner " << inner << " sideorient " << sideorient << std::endl;
                 if(inner < 0.) {
                     if(skelsideorient != -sideorient) {
-                        std::cout << "Adjusting skel " << el << " side orientation to " << -sideorient << std::endl;
+//                        std::cout << "Adjusting skel " << el << " side orientation to " << -sideorient << std::endl;
                     }
                     celskelint->SetSideOrient(gelskel->NSides()-1, -sideorient);
                 } else {
                     if(skelsideorient != sideorient) {
-                        std::cout << "Adjusting skel " << el << " side orientation to " << sideorient << std::endl;
+//                        std::cout << "Adjusting skel " << el << " side orientation to " << sideorient << std::endl;
                     }
                     celskelint->SetSideOrient(gelskel->NSides()-1, sideorient);
                 }
@@ -1207,4 +1216,62 @@ void AdjustSkelSideOrient(TPZCompMesh *hdivmesh) {
             }
         }
     }
+}
+
+void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* analy) {
+
+    REAL maxnormdiff = std::numeric_limits<REAL>::min();
+    for(int i = 0 ; i < cmesh->NElements() ; i++){
+        TPZCompEl* cel = cmesh->Element(i);
+        if(!cel) continue;
+        if(!cel->Reference()) continue; // subcompmesh
+        if(cel->Reference()->MaterialId() != EMHM) continue;
+        if(cel->Dimension() != 2) DebugStop();
+        
+        TPZCompEl* celhdiv = cmesh->MeshVector()[0]->Element(i);
+        TPZGeoEl* gel = cel->Reference();
+        TPZManVector<STATE,2> qsi = {0,0};
+        TPZManVector<STATE,3> x = {0,0,0};
+        gel->CenterPoint(gel->NSides()-1, qsi);
+        gel->X(qsi, x);
+        TPZVec<STATE> sol;
+        celhdiv->Solution(qsi, 0, sol);
+        std::cout << "------ x = " << x << " ------" << std::endl;
+        std::cout << "sigmanormal_approx = " << sol << std::endl;
+        TPZFNMatrix<9,STATE> sigma(3,3,0.);
+        analy->Sigma(x, sigma);
+//        sigma.Print("sigma");
+        TPZFMatrix<STATE> gradx, jac, axes, jacinv;
+        REAL detjac = -1.;
+        gel->GradX(qsi, gradx);
+        gel->Jacobian(gradx, jac, axes, detjac, jacinv);
+//        axes.Print("axes");
+        TPZManVector<REAL,3> axes1(3,0.), axes2(3,0.), normal(3,0.);
+        for(int idim = 0 ; idim < 3 ; idim++){
+            axes1[idim] = axes(0,idim);
+            axes2[idim] = axes(1,idim);
+        }
+        Cross(axes1, axes2, normal);
+        TPZFMatrix<REAL> normalmat(3,1,0.);
+        for(int idim = 0 ; idim < 3 ; idim++) normalmat(idim,0) = normal[idim];
+        TPZFMatrix<STATE> signormal_exact(3,3,0.);
+        sigma.Multiply(normalmat, signormal_exact);
+        std::cout << "sigmanormal_exact = " << signormal_exact(0,0);
+        for(int idim = 1 ; idim < 3 ; idim++) std::cout << ", " <<  signormal_exact(idim,0);
+        std::cout << std::endl;
+        
+        // Takig the norm of the difference
+        REAL normdiff = 0.;
+        TPZManVector<REAL,3> diff(3,0.);
+        for(int idim = 0 ; idim < 3 ; idim++){
+            normdiff += ( signormal_exact(idim,0) - sol[idim] ) * ( signormal_exact(idim,0) - sol[idim] );
+        }
+        normdiff = sqrt(normdiff);
+        if(normdiff > maxnormdiff) maxnormdiff = normdiff;
+        std::cout << "normdiff = " << normdiff << std::endl;
+        if(normdiff > 2.5) {
+            std::cout << "Big difference!!" << std::endl;
+        }
+    }
+    std::cout << "maxnormdiff = " << maxnormdiff << std::endl;
 }
