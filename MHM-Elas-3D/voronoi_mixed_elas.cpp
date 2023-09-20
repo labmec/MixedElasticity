@@ -88,6 +88,8 @@ void IdentifyInteractionPlanes(TPZMultiphysicsCompMesh *cmesh, TPZVec<int> &doma
 
 void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* analy);
 
+void Project(TPZCompEl* cel, TPZAnalyticSolution* analy, TPZFMatrix<REAL>& normalmat);
+
 class InputParser{
     public:
         InputParser (int &argc, char **argv){
@@ -399,6 +401,9 @@ int main(int argc, char *argv[])
     // Now, with the solution, let's check if the normal fluxes at
     // the skeleton are very close to what we get from the exact solution by doing sigma n
     CheckNormalFluxes(cmesh,gAnalytic);
+    
+    cmesh->LoadSolutionFromMeshes();
+    cmesh->LoadSolution(cmesh->Solution());
     
 #ifdef PZDEBUG
     {
@@ -1228,6 +1233,7 @@ void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* anal
         if(cel->Reference()->MaterialId() != EMHM) continue;
         if(cel->Dimension() != 2) DebugStop();
         
+        // Computing the solution at the center of the element
         TPZCompEl* celhdiv = cmesh->MeshVector()[0]->Element(i);
         TPZGeoEl* gel = cel->Reference();
         TPZManVector<STATE,2> qsi = {0,0};
@@ -1236,16 +1242,16 @@ void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* anal
         gel->X(qsi, x);
         TPZVec<STATE> sol;
         celhdiv->Solution(qsi, 0, sol);
-        std::cout << "------ x = " << x << " ------" << std::endl;
-        std::cout << "sigmanormal_approx = " << sol << std::endl;
+//        std::cout << "------ x = " << x << " ------" << std::endl;
+//        std::cout << "sigmanormal_approx = " << sol << std::endl;
+        
+        // Computing the axes of the element to get the normal
         TPZFNMatrix<9,STATE> sigma(3,3,0.);
         analy->Sigma(x, sigma);
-//        sigma.Print("sigma");
         TPZFMatrix<STATE> gradx, jac, axes, jacinv;
         REAL detjac = -1.;
         gel->GradX(qsi, gradx);
         gel->Jacobian(gradx, jac, axes, detjac, jacinv);
-//        axes.Print("axes");
         TPZManVector<REAL,3> axes1(3,0.), axes2(3,0.), normal(3,0.);
         for(int idim = 0 ; idim < 3 ; idim++){
             axes1[idim] = axes(0,idim);
@@ -1254,13 +1260,18 @@ void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* anal
         Cross(axes1, axes2, normal);
         TPZFMatrix<REAL> normalmat(3,1,0.);
         for(int idim = 0 ; idim < 3 ; idim++) normalmat(idim,0) = normal[idim];
+        
+        // Computing sigma n to get the normal flux in the skeleton
         TPZFMatrix<STATE> signormal_exact(3,3,0.);
         sigma.Multiply(normalmat, signormal_exact);
-        std::cout << "sigmanormal_exact = " << signormal_exact(0,0);
-        for(int idim = 1 ; idim < 3 ; idim++) std::cout << ", " <<  signormal_exact(idim,0);
-        std::cout << std::endl;
+//        std::cout << "sigmanormal_exact = " << signormal_exact(0,0);
+//        for(int idim = 1 ; idim < 3 ; idim++) std::cout << ", " <<  signormal_exact(idim,0);
+//        std::cout << std::endl;
         
-        // Takig the norm of the difference
+        // Projecting sigmanormal_exact into the space of this element
+        Project(celhdiv,analy,normalmat);
+        
+        // Takig the norm of the difference between signormal_exact and signormal_approx (sol)
         REAL normdiff = 0.;
         TPZManVector<REAL,3> diff(3,0.);
         for(int idim = 0 ; idim < 3 ; idim++){
@@ -1268,10 +1279,88 @@ void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* anal
         }
         normdiff = sqrt(normdiff);
         if(normdiff > maxnormdiff) maxnormdiff = normdiff;
-        std::cout << "normdiff = " << normdiff << std::endl;
-        if(normdiff > 2.5) {
-            std::cout << "Big difference!!" << std::endl;
+//        std::cout << "normdiff = " << normdiff << std::endl;
+        if(normdiff > 3.0) {
+//            std::cout << "Big difference!!" << std::endl;
         }
     }
-    std::cout << "maxnormdiff = " << maxnormdiff << std::endl;
+//    std::cout << "maxnormdiff = " << maxnormdiff << std::endl;
+}
+
+void Project(TPZCompEl* celhdiv, TPZAnalyticSolution* analy, TPZFMatrix<REAL>& normalmat) {
+    if(!celhdiv) DebugStop();
+    
+    // Some checks
+    TPZGeoEl* gel = celhdiv->Reference();
+    if(celhdiv->NConnects() != 1) DebugStop(); // Should be hdivbound
+    if(gel->Type() != ETriangle) DebugStop(); // our mesh should only have tets
+    TPZInterpolatedElement* intel = dynamic_cast<TPZInterpolatedElement*>(celhdiv);
+    if(!intel) DebugStop();
+    
+    // Initializing material data
+    TPZMaterialDataT<STATE> data;
+    intel->InitMaterialData(data);
+    TPZManVector<REAL> qsi(2,0.);
+    int64_t nshape = data.phi.Rows();
+    
+    if(nshape != 3) DebugStop(); // Should we accept, at this point, more than 3 shape functions (linear skel)?
+     
+    // lhs and rhs
+    TPZFNMatrix<81,REAL> matL2(nshape,nshape,0.);
+    TPZFNMatrix<9,REAL> L2proj(nshape,3,0.);
+    
+    pztopology::TPZTriangle::IntruleType intrule(5); // Sigma is function of sin, cos and exp
+    int npts = intrule.NPoints();
+    const int neq = celhdiv->NEquations();
+    for(int ip = 0 ; ip < npts ; ip++) {
+        REAL weight;
+        intrule.Point(ip, qsi, weight);
+        intel->ComputeRequiredData(data, qsi);
+        
+        // Compute sigma.normal at this intpoint
+        TPZFNMatrix<9,STATE> sigma(3,3,0.);
+        analy->Sigma(data.x, sigma);
+        TPZFMatrix<STATE> signormal_exact(3,1,0.);
+        sigma.Multiply(normalmat, signormal_exact);
+//        signormal_exact.Print(std::cout);
+        // Compute l2 mat
+        for(int i=0; i<nshape; i++) {
+            L2proj(i,0) += data.phi(i,0)* signormal_exact(0,0) *data.detjac*weight;
+            L2proj(i,1) += data.phi(i,0)* signormal_exact(1,0) *data.detjac*weight;
+            L2proj(i,2) += data.phi(i,0)* signormal_exact(2,0) *data.detjac*weight;
+            for (int j=0; j<nshape; j++) {
+                matL2(i,j) += data.phi(i,0)*data.phi(j,0)*data.detjac*weight;
+            }
+        }
+    }
+    
+    // Solve system
+    matL2.SolveDirect(L2proj, ELU);
+//    std::cout << L2proj << std::endl;
+    
+    TPZCompMesh* cmeshhdiv = celhdiv->Mesh();
+    TPZConnect& c = celhdiv->Connect(0); // only one connect
+    int64_t seq = c.SequenceNumber();
+    const int64_t firsteq = cmeshhdiv->Block().Position(seq);
+    const int64_t blocksize = cmeshhdiv->Block().Size(seq);
+    TPZFMatrix<STATE>& solmat = cmeshhdiv->Solution();
+    int count = 0;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            solmat(firsteq+count,0) = L2proj(i,j);
+            count++;
+        }
+    }
+    
+    
+    // Test
+//    qsi = {0,0};
+//    TPZManVector<STATE,3> x = {0,0,0};
+//    gel->CenterPoint(gel->NSides()-1, qsi);
+//    gel->X(qsi, x);
+//    TPZVec<STATE> sol;
+//    celhdiv->Solution(qsi, 0, sol);
+//    std::cout << "------ x = " << x << " ------" << std::endl;
+//    std::cout << "sigmanormal_approx = " << sol << std::endl;
+    
 }
