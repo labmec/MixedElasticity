@@ -401,8 +401,8 @@ int main(int argc, char *argv[])
     // Now, with the solution, let's check if the normal fluxes at
     // the skeleton are very close to what we get from the exact solution by doing sigma n
     CheckNormalFluxes(cmesh,gAnalytic);
-    
-    cmesh->LoadSolutionFromMeshes();
+//    cmesh->MeshVector()[0]->Solution().Zero();
+    TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(cmesh->MeshVector(), cmesh);
     cmesh->LoadSolution(cmesh->Solution());
     
 #ifdef PZDEBUG
@@ -1284,6 +1284,7 @@ void CheckNormalFluxes(TPZMultiphysicsCompMesh* cmesh, TPZAnalyticSolution* anal
 //            std::cout << "Big difference!!" << std::endl;
         }
     }
+    cmesh->LoadSolutionFromMeshes();
 //    std::cout << "maxnormdiff = " << maxnormdiff << std::endl;
 }
 
