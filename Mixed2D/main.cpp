@@ -846,35 +846,36 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     auto * BCond0 = material->CreateBC(material, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
     //BCond0->SetForcingFunction(p_exact1, bc_inte_order);
     //BCond0->SetForcingFunction(solucao_exact,bc_inte_order);
-    BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    int porder = 4;
+    BCond0->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
     auto * BCond1 = material->CreateBC(material, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-    BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
     //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
     auto * BCond2 = material->CreateBC(material, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
-    BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond2->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     //BCond2->SetForcingFunction(p_exact1,bc_inte_order);
     //Cond2->SetForcingFunction(solucao_exact,bc_inte_order);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
     auto * BCond3 = material->CreateBC(material, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond3->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
     auto * BCond5 = material->CreateBC(material, -5, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond5->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond5); //Insere material na malha
 
     auto * BCond6 = material->CreateBC(material, -6, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond6->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond6->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond6); //Insere material na malha
 
     auto * BCond4 = material->CreateBC(material, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
-    BCond4->SetForcingFunctionBC(gAnalytic->ExactSolution());
+    BCond4->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond4); //Insere material na malha
 
     //Ponto
@@ -949,7 +950,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZElementGroup *elgr = new TPZElementGroup(*cmesh);
         elgr->AddElement(cel);
         elgr->AddElement(ellag);
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr, false);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(elgr, false);
     }
     cmesh->InitializeBlock();
 }
@@ -971,7 +972,7 @@ void CreateCondensedElements2(TPZCompMesh *cmesh) {
         cel->Connect(numconnects[0]).IncrementElConnected();
         cel->Connect(numconnects[0] + 1).IncrementElConnected();
         cel->Connect(numconnects[0] + numconnects[1] + gel->NCornerNodes() - 1).IncrementElConnected();
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(cel);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(cel);
     }
 }
 
@@ -1267,7 +1268,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            bool optimizeBandwidth = true;
+            auto optimizeBandwidth = RenumType::EDefault;
             cmesh_m_HDiv->InitializeBlock();
             
             TPZCompMesh *cmesh = cmesh_m_HDiv;

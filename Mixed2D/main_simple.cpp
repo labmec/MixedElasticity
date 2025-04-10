@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
             gmesh->Print(fileg);
             TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
 #endif
-            TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
+            TPZMultiphysicsCompMesh *cmesh_m_HDiv;
             
             TPZVec<int64_t> coarseindices(gmesh->NElements());
             int64_t count = 0;
@@ -175,11 +175,11 @@ int main(int argc, char *argv[]) {
             control.SetSkeletonPOrder(pref);
             bool substruct = true;
             control.BuildComputationalMesh(substruct);
-            cmesh_m_HDiv = control.CMesh();
+            cmesh_m_HDiv = dynamic_cast<TPZMultiphysicsCompMesh *>( control.CMesh().operator->());
             
-            SolveProblem(cmesh_m_HDiv, rootname);
+            SolveProblem(*cmesh_m_HDiv, rootname);
             
-            ComputeError(cmesh_m_HDiv, rootname, href, pref, control);
+            ComputeError(*cmesh_m_HDiv, rootname, href, pref, control);
 
         }
     }
@@ -210,7 +210,8 @@ void InsertMaterialObjects(TPZCompMesh &cmeshref)
 
     {
         auto * BCond1 = material->CreateBC(material, -1, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-        BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution());
+        int porder = 5;
+        BCond1->SetForcingFunctionBC(gAnalytic->ExactSolution(),porder);
         TPZMaterial *bc = dynamic_cast<TPZMaterial *>(BCond1);
         //BCond1->SetForcingFunction(p_exact1,bc_inte_order);
         //BCond1->SetForcingFunction(solucao_exact,bc_inte_order);

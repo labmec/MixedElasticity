@@ -358,7 +358,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZElementGroup *elgr = new TPZElementGroup(*cmesh);
         elgr->AddElement(cel);
         elgr->AddElement(elLagrange);
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr, false);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(elgr, false);
     }
     cmesh->InitializeBlock();
 }
@@ -380,7 +380,7 @@ void CreateCondensedElements2(TPZCompMesh *cmesh) {
         cel->Connect(numconnects[0]).IncrementElConnected();
         cel->Connect(numconnects[0] + 1).IncrementElConnected();
         cel->Connect(numconnects[0] + numconnects[1] + gel->NCornerNodes() - 1).IncrementElConnected();
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(cel);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(cel);
     }
 }
 
@@ -720,7 +720,7 @@ int main(int argc, char *argv[]) {
 
             //CreateCondensedElements(cmesh_m_HDiv);
             TPZCompMeshTools::GroupElements(cmesh_m_HDiv);
-            TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 4);
+            TPZCompMeshTools::CondenseElements(cmesh_m_HDiv, 4, false);
 
 #ifdef PZDEBUG
             {
@@ -733,7 +733,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            bool optimizeBandwidth = true;
+            auto optimizeBandwidth = RenumType::EDefault;
             cmesh_m_HDiv->InitializeBlock();
             
             TPZCompMesh *cmesh = cmesh_m_HDiv;

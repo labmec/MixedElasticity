@@ -16,7 +16,7 @@
 void SolveProblem(TPZMultiphysicsCompMesh &cmesh, std::stringstream &rootname)
 {
     int numthreads = 1;
-    bool optimizeBandwidth = true;
+    const RenumType optimizeBandwidth = RenumType::EDefault;
     bool plotting = true;
     TPZLinearAnalysis an(&cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
 #ifdef PZ_USING_MKL
@@ -116,7 +116,7 @@ void ComputeError(TPZCompMesh &cmesh, std::stringstream &rootname, int href, int
 
     std::stringstream sout;
     sout << rootname.str();
-    sout << "_" << mhm.fpOrderSkeleton << "_Error.nb";
+    sout << "_" << mhm.pOrderSkeleton() << "_Error.nb";
     std::ofstream ErroOut(sout.str(), std::ios::app);
     ErroOut << "(* Type of simulation " << rootname.str() << " *)\n";
     ErroOut << "(* Number of elements " << nelx << " *)" << std::endl;
@@ -126,7 +126,7 @@ void ComputeError(TPZCompMesh &cmesh, std::stringstream &rootname, int href, int
     ErroOut << "(* Number of Condensed equations " << mhm.fGlobalSystemWithLocalCondensationSize << " *)" << std::endl;
     ErroOut << "(* Number of equations before condensation " << mhm.fGlobalSystemSize << " *)" << std::endl;
     ErroOut << "(*\n";
-    TPZLinearAnalysis an(&cmesh,false);
+    TPZLinearAnalysis an(&cmesh,RenumType::ENone);
     an.SetThreadsForError(numthreads);
     bool store_errors = true;
     cmesh.ExpandElementSolution(Errors.size());
@@ -137,8 +137,8 @@ void ComputeError(TPZCompMesh &cmesh, std::stringstream &rootname, int href, int
     ErroOut << "*)\n";
     TPZManVector<STATE, 10> output(Errors.size() + 5, 0);
     output[0] = nelx;
-    output[1] = mhm.fpOrderSkeleton;
-    output[2] = mhm.fpOrderInternal;
+    output[1] = mhm.pOrderSkeleton();
+    output[2] = mhm.pOrderInternal();
     output[3] = cmesh.NEquations();
     output[4] = mhm.fGlobalSystemSize;
     for (int i = 0; i < Errors.size(); i++) {

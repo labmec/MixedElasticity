@@ -911,6 +911,8 @@ TPZCompMesh *CMesh_AxiS(TPZGeoMesh *gmesh, int pOrder, TElasticityExample1 &exam
 
 }
 
+#include "Elasticity/TPZElasticity2D.h"
+
 TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
 
     //Creating computational mesh:
@@ -936,7 +938,9 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     
     if(elastc_examp)
     {
-        material->SetElasticityFunction(elastc_examp->ConstitutiveLawFunction());
+        TPZElasticity2D::ElasticityFunctionType func = elastc_examp->ElasticFunc();
+        material->SetElasticityFunction(func);
+//        material->SetElasticityFunction(elastc_examp->ConstitutiveLawFunction());
         if(elastc_examp->fPlaneStress)
         {
             material->SetPlaneStress();
@@ -997,24 +1001,25 @@ TPZCompMesh *CMesh_m(TPZGeoMesh *gmesh, int pOrder) {
     TPZFMatrix<REAL> val1(2, 2, 0.);
     TPZManVector<REAL> val2(2, 0.);
 
+    int porder = 4;
     auto * BCond0 = material->CreateBC(mat, matBCbott, dirichlet, val1, val2); //Cria material que implementa a condição de contorno inferior
-    if(example) BCond0->SetForcingFunctionBC(example->ExactSolution());
+    if(example) BCond0->SetForcingFunctionBC(example->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond0); //Insere material na malha
 
     auto * BCond1 = material->CreateBC(mat, matBCtop, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno superior
-     if(example) BCond1->SetForcingFunctionBC(example->ExactSolution());
+     if(example) BCond1->SetForcingFunctionBC(example->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond1); //Insere material na malha
 
     auto * BCond2 = material->CreateBC(mat, matBCleft, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno esquerda
-     if(example) BCond2->SetForcingFunctionBC(example->ExactSolution());
+     if(example) BCond2->SetForcingFunctionBC(example->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond2); //Insere material na malha
 
     auto * BCond3 = material->CreateBC(mat, matBCright, dirichlet, val1, val2); //Cria material que implementa a condicao de contorno direita
-     if(example) BCond3->SetForcingFunctionBC(example->ExactSolution());
+     if(example) BCond3->SetForcingFunctionBC(example->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond3); //Insere material na malha
 
     auto * BCond4 = material->CreateBC(mat, matLagrange, neumann, val1, val2); //Cria material que implementa a condicao de contorno direita
-     if(example) BCond4->SetForcingFunctionBC(example->ExactSolution());
+     if(example) BCond4->SetForcingFunctionBC(example->ExactSolution(),porder);
     cmesh->InsertMaterialObject(BCond4); //Insere material na malha
 
     //Ponto
@@ -1090,7 +1095,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZElementGroup *elgr = new TPZElementGroup(*cmesh);
         elgr->AddElement(cel);
         elgr->AddElement(ellagrange);
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr, false);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(elgr, false);
     }
     cmesh->InitializeBlock();
 }
@@ -1112,7 +1117,7 @@ void CreateCondensedElements2(TPZCompMesh *cmesh) {
         cel->Connect(numconnects[0]).IncrementElConnected();
         cel->Connect(numconnects[0] + 1).IncrementElConnected();
         cel->Connect(numconnects[0] + numconnects[1] + gel->NCornerNodes() - 1).IncrementElConnected();
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(cel);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(cel);
     }
 }
 
@@ -1395,7 +1400,7 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            bool optimizeBandwidth = true;
+            auto optimizeBandwidth = RenumType::EDefault;
             cmesh_m_HDiv->InitializeBlock();
 
             TPZCompMesh * cmesh_m_Hybrid;

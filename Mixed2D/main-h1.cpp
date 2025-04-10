@@ -72,7 +72,7 @@ void ConvergenceTest() {
 		cout << "\nNumber of elements: " << cmesh->NElements() << endl;
 		cout << "Number of equations: " << cmesh->NEquations() << endl;
 		auto start_time_anal = std::chrono::steady_clock::now();
-		TPZLinearAnalysis an(cmesh,true);
+		TPZLinearAnalysis an(cmesh,RenumType::EDefault);
 		constexpr int nThreads{0};
 		TPZSSpStructMatrix<STATE> matskl(cmesh); // fast - works great with mkl
 		matskl.SetNumThreads(nThreads);
@@ -210,7 +210,7 @@ void RunLockingProblem(){
 		cout << "\nNumber of elements: " << cmesh->NElements() << endl;
 		cout << "Number of equations: " << cmesh->NEquations() << endl;
 		auto start_time_anal = std::chrono::steady_clock::now();
-		TPZLinearAnalysis an(cmesh,true);
+		TPZLinearAnalysis an(cmesh,RenumType::ENone);
 		constexpr int nThreads{0};
 		TPZSSpStructMatrix<STATE> matskl(cmesh); // fast - works great with mkl
 		// TPZSkylineStructMatrix<STATE> matskl(cmesh); // fast - works great with mkl

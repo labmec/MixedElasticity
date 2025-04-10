@@ -923,7 +923,7 @@ int main(int argc, char *argv[]) {
         std::ofstream filegvtk("GMeshInicial.vtk");
         TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
     }
-    TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
+    TPZMultiphysicsCompMesh *cmesh_m_HDiv;
     const bool isRefine = nrefint > 0;
     if(isRefine){
         TPZCheckGeom check(gmesh);
@@ -973,7 +973,7 @@ int main(int argc, char *argv[]) {
     
     
     rootname << "_Sub";
-    cmesh_m_HDiv = control.CMesh();
+    cmesh_m_HDiv = dynamic_cast<TPZMultiphysicsCompMesh *>( control.CMesh().operator->());
         
 #ifdef PZDEBUG
     {
@@ -1001,10 +1001,10 @@ int main(int argc, char *argv[]) {
 #endif
     
     //Solving the system:
-    bool optimizeBandwidth = true;
+    auto optimizeBandwidth = RenumType::EDefault;
     cmesh_m_HDiv->InitializeBlock();
     
-    TPZCompMesh *cmesh = cmesh_m_HDiv.operator->();
+    TPZCompMesh *cmesh = cmesh_m_HDiv;
     
 //    TPZVec<TPZCompMesh*>& meshvec = cmesh_m_HDiv->MeshVector();
 //    for(int i = 0 ; i < meshvec.size() ; i++) {

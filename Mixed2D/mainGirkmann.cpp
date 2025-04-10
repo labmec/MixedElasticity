@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Number of equations " << cmesh_m->NEquations() << std::endl;
 
-    bool optimizeBandwidth = true; //Impede a renumeração das equacoes do problema (para obter o mesmo resultado do Oden)
+    RenumType optimizeBandwidth = RenumType::EDefault; //Impede a renumeração das equacoes do problema (para obter o mesmo resultado do Oden)
     TPZLinearAnalysis an(cmesh_m, optimizeBandwidth); //Cria objeto de análise que gerenciará a analise do problema
 
 #ifdef PZ_USING_MKL2
@@ -722,7 +722,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZElementGroup *elgr = new TPZElementGroup(*cmesh);
         elgr->AddElement(cel);
         elgr->AddElement(compellagrange);
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(elgr);
     }
     cmesh->ExpandSolution();
 }
@@ -744,7 +744,7 @@ void CreateCondensedElements2(TPZCompMesh *cmesh) {
         cel->Connect(numconnects[0]).IncrementElConnected();
         cel->Connect(numconnects[0] + 1).IncrementElConnected();
         cel->Connect(numconnects[0] + numconnects[1] + numconnects[2] - 1).IncrementElConnected();
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(cel);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(cel);
     }
 }
 

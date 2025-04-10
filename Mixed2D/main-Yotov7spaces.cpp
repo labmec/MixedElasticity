@@ -966,7 +966,7 @@ void CreateCondensedElements(TPZCompMesh *cmesh) {
         TPZElementGroup *elgr = new TPZElementGroup(*cmesh);
         elgr->AddElement(cel);
         elgr->AddElement(ellagrange);
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(elgr, false);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(elgr, false);
     }
     cmesh->InitializeBlock();
 }
@@ -988,7 +988,7 @@ void CreateCondensedElements2(TPZCompMesh *cmesh) {
         cel->Connect(numconnects[0]).IncrementElConnected();
         cel->Connect(numconnects[0] + 1).IncrementElConnected();
         cel->Connect(numconnects[0] + numconnects[1] + gel->NCornerNodes() - 1).IncrementElConnected();
-        TPZCondensedCompEl *condensed = new TPZCondensedCompEl(cel);
+        TPZCondensedCompEl *condensed = new TPZCondensedCompElT<STATE>(cel);
     }
 }
 
@@ -1248,7 +1248,7 @@ int main(int argc, char *argv[]) {
                 // std::ofstream filegvtk("GMeshInicial.vtk");
                 // TPZVTKGeoMesh::PrintGMeshVTK(gmesh, filegvtk, true);
             }
-            TPZAutoPointer<TPZMultiphysicsCompMesh> cmesh_m_HDiv;
+            TPZMultiphysicsCompMesh *cmesh_m_HDiv;
             if(1){
                 TPZCheckGeom check(gmesh);
                 check.UniformRefine(intref+1);
@@ -1296,7 +1296,7 @@ int main(int argc, char *argv[]) {
             bool substruct = true;
             control.BuildComputationalMesh(substruct);
             rootname << "_Sub";
-            cmesh_m_HDiv = control.CMesh();
+            cmesh_m_HDiv = dynamic_cast<TPZMultiphysicsCompMesh *>(control.CMesh().operator->());
             
             
             
@@ -1327,10 +1327,10 @@ int main(int argc, char *argv[]) {
 #endif
 
             //Solving the system:
-            bool optimizeBandwidth = true;
+            auto optimizeBandwidth = RenumType::EDefault;
             cmesh_m_HDiv->InitializeBlock();
             
-            TPZCompMesh *cmesh = cmesh_m_HDiv.operator->();
+            TPZCompMesh *cmesh = cmesh_m_HDiv;
             TPZLinearAnalysis an(cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
 // #ifdef PZ_USING_MKL
             TPZSSpStructMatrix<STATE> matskl(cmesh);
