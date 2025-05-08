@@ -9,6 +9,7 @@
 #include "TPZCompelDiscScaled.h"
 #include "TPZParFrontStructMatrix.h"
 #include "TPZSSpStructMatrix.h"
+#include "pzstrmatrixot.h"
 
 #include <pz_config.h>
 
@@ -506,11 +507,6 @@ int main(int argc, char *argv[]) {
     int n_ref_p = final_p - initial_p + 1;
     int n_ref_h = final_h - initial_h + 1;
 
-#ifdef PZ_USING_MKL
-//    mkl_set_dynamic(0); // disable automatic adjustment of the number of threads
-//    mkl_set_num_threads(numthreads);
-#endif
-
     std::stringstream rootname_common;
     double hx = 2, hy = 2; //Dimensões em x e y do domínio
     double x0 = -1;
@@ -761,7 +757,7 @@ int main(int argc, char *argv[]) {
 
 
 // #ifdef PZ_USING_MKL2
-            TPZSSpStructMatrix<STATE> matskl(cmesh);
+            TPZSSpStructMatrix<STATE,TPZStructMatrixOT<STATE>> matskl(cmesh);
 // #else
 //             TPZSkylineStructMatrix<STATE> matskl(cmesh); // asymmetric case ***
 // #endif

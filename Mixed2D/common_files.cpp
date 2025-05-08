@@ -11,7 +11,7 @@
 #include "TPZAnalyticSolution.h"
 #include "TPZMaterial.h"
 #include "TPZMHMeshControl.h"
-
+#include "pzstrmatrixot.h"
 
 void SolveProblem(TPZMultiphysicsCompMesh &cmesh, std::stringstream &rootname)
 {
@@ -20,7 +20,7 @@ void SolveProblem(TPZMultiphysicsCompMesh &cmesh, std::stringstream &rootname)
     bool plotting = true;
     TPZLinearAnalysis an(&cmesh, optimizeBandwidth); //Creates the object that will manage the analysis of the problem
 #ifdef PZ_USING_MKL
-    TPZSymetricSpStructMatrix matskl(cmesh);
+    TPZSSpStructMatrix<STATE, TPZStructMatrixOT<STATE>> matskl(&cmesh);
 #else
     TPZSkylineStructMatrix<STATE> matskl(&cmesh); // asymmetric case ***
 #endif
