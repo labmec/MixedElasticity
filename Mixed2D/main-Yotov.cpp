@@ -79,7 +79,9 @@
 #include "TPZAnalyticSolution.h"
 
 #include "TPZMixedElasticityCMeshCreator.h"
-#include "TPZMixedElasticityUtils.h" 
+#include "TPZMixedElasticityUtils.h"
+
+#include "TPZVTKGenerator.h"
 
 #include <cmath>
 #include <set>
@@ -811,7 +813,7 @@ int main(int argc, char *argv[]) {
 #endif
             TPZBuildMultiphysicsMesh::TransferFromMultiPhysics(meshvector, cmesh);
 
-            if (plotting) {
+            if (0) {
                 std::string plotfile;
                 {
                     std::stringstream sout;
@@ -833,6 +835,32 @@ int main(int argc, char *argv[]) {
                 an.SetStep(count);
                 an.DefineGraphMesh(dim, scalnames, vecnames, plotfile);
                 an.PostProcess(0);
+            }
+
+            if (plotting) {
+                std::string plotfile;
+                {
+                    std::stringstream sout;
+                    sout << rootname.str() << ".vtk";
+                    plotfile = sout.str();
+                }
+
+                TPZStack<std::string> fieldnames;
+                fieldnames.Push("SigmaX");
+                fieldnames.Push("SigmaY");
+                fieldnames.Push("TauXY");
+                if (dim == 3) {
+                    fieldnames.Push("SigmaZ");
+                    fieldnames.Push("TauXZ");
+                    fieldnames.Push("TauYZ");
+                }
+                fieldnames.Push("Displacement");
+                fieldnames.Push("Stress");
+                fieldnames.Push("Flux");
+
+                TPZVTKGenerator vtk(cmesh, fieldnames, plotfile, 0, 1);
+                vtk.SetNThreads(0);
+                vtk.Do();
             }
 
 #ifdef PZDEBUG
