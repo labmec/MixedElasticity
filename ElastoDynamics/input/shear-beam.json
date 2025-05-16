@@ -1,0 +1,52 @@
+{	
+	"MeshName": "shear-beam.msh",
+
+	"Dimension": 2,
+
+	"StressOrder": 1,
+
+	"DispOrder": 0,
+
+	"PlaneStress": 1,
+
+	"VTKRes": 0,
+
+	"ShouldCondense": false,
+
+    "FiveSpaces": false,
+
+	"AnalyticSolution": "loadedbeam",
+
+	"Domains": [ // domain data
+		{
+			"name": "Domain",
+			"matID": 1,
+			"E": 1,
+			"nu": 0.0
+		}
+	],
+
+	"Boundaries":[
+        {
+			"name": "Dirichlet",
+			"matID": 2,
+			"type": 0,
+			"value": [0.0, 0.0, 0.0]
+		},
+        {
+			"name": "Neumann", // name of boundary condition
+			"matID": 3,
+			"type": 1, // type: 0 -> Normal Velocity, 1 -> Tangential Velocity, 2 -> Normal Stress, and 3 -> Tangential Stress 
+			"value": [0.0, 0.0, 0.0]
+		}
+	],
+
+	"InterfaceID": 20,
+	"LambdaID": 10
+}
+
+
+
+
+
+

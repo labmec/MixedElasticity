@@ -31,9 +31,15 @@ IF(APPLE)
    add_custom_target( GlobalFiles SOURCES ${PZ_SRC})
 ENDIF(APPLE)
 
+add_library(MixedElastoDynamics_lib SHARED "")
+target_link_libraries(MixedElastoDynamics_lib PUBLIC NeoPZ::pz)
+target_include_directories(MixedElastoDynamics_lib PUBLIC ${PZ_INCLUDE_DIRS})
+set_target_properties(MixedElastoDynamics_lib PROPERTIES LINKER_LANGUAGE CXX)
+
 add_subdirectory(Mixed2D)
 add_subdirectory(MHM-Elas-3D)
 add_subdirectory(SymTensor)
+add_subdirectory(ElastoDynamics)
 
 #Enabling nightly tests
 ENABLE_TESTING()
