@@ -1,0 +1,157 @@
+
+TriangleBC.msh Internal order 1 Boundary order 1
+Global system neq 224 Total equations 2240
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.109905, 0.109794, 0.395981, 0.123151, 2.57362
+Global system neq 832 Total equations 8896
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0288457, 0.0288061, 0.196863, 0.0618393, 2.57362
+Global system neq 3200 Total equations 35456
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00734429, 0.00733243, 0.0982832, 0.0309745, 2.57362
+Global system neq 12544 Total equations 141568
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00184843, 0.00184523, 0.0491229, 0.0154944, 2.57362
+
+
+TriangleBC.msh Internal order 2 Boundary order 1
+Global system neq 224 Total equations 3872
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0950122, 0.0950911, 0.0262433, 0.0179746, 2.57362
+Global system neq 832 Total equations 15424
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0247896, 0.0247985, 0.00658033, 0.00277406, 2.57362
+Global system neq 3200 Total equations 61568
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0062958, 0.00629684, 0.00164633, 0.000545139, 2.57362
+Global system neq 12544 Total equations 246016
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy
+errors 0.00158331, 0.00158343, 0.000411662, 0.000125462, 2.57362
+
+TriangleBC.msh Internal order 3 Boundary order 1
+Global system neq 224 Total equations 5984
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.093424, 0.093503, 0.00155313, 0.0178264, 2.57362
+Global system neq 832 Total equations 23872
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0243495, 0.0243587, 0.000194734, 0.00221643, 2.57362
+Global system neq 3200 Total equations 95360
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00618236, 0.00618345, 2.43602e-05, 0.000277545, 2.57362
+Global system neq 12544 Total equations 381184
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00155468, 0.00155481, 3.0456e-06, 3.47683e-05, 2.57362
+
+
+Quad.msh Internal order 1 Boundary order 1
+Global system neq 160 Total equations 1488
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.287571, 0.278671, 1.37951, 0.440279, 4.63288
+Global system neq 576 Total equations 5888
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0709474, 0.0686364, 0.691866, 0.213099, 4.63288
+Global system neq 2176 Total equations 23424
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0176792, 0.0171013, 0.346024, 0.106086, 4.63288
+Global system neq 8448 Total equations 93440
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00441814, 0.00427369, 0.173018, 0.0529971, 4.63288
+
+Quad.msh Internal order 2 Boundary order 1
+Global system neq 160 Total equations 2576
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.189034, 0.189529, 0.205559, 0.0557518, 4.63288
+Global system neq 576 Total equations 10240
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0488379, 0.0489222, 0.0517824, 0.013896, 4.63288
+Global system neq 2176 Total equations 40832
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0124393, 0.0124521, 0.0129689, 0.00346964, 4.63288
+Global system neq 8448 Total equations 163072
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00314029, 0.00314206, 0.00324365, 0.000867029, 4.63288
+
+Quad.msh Internal order 3 Boundary order 1
+Global system neq 160 Total equations 3984
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.174346, 0.174949, 0.0179172, 0.0202961, 4.63288
+Global system neq 576 Total equations 15872
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0445281, 0.0446271, 0.00224833, 0.00259164, 4.63288
+Global system neq 2176 Total equations 63360
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0113372, 0.0113517, 0.000281312, 0.000335059, 4.63288
+Global system neq 8448 Total equations 253184
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy
+errors 0.0028657, 0.00286765, 3.51724e-05, 4.28024e-05, 4.63288
+
+../honeycomb.1.msh Internal order 2 Boundary order 2
+Global system neq 36 Total equations 201
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0255878, 0.0246744, 0.170424, 0.0335488, 2.04353
+Global system neq 180 Total equations 1335
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00137941, 0.00135133, 0.0222249, 0.00432668, 1.95061
+Global system neq 792 Total equations 6897
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.000254215, 0.000253303, 0.00444449, 0.000873305, 1.98494
+Global system neq 3312 Total equations 31197
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 6.23649e-05, 6.23371e-05, 0.00100966, 0.000199629, 2.01215
+
+../honeycomb.1.msh Internal order 3 Boundary order 1
+Global system neq 24 Total equations 381
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.0547303, 0.0553691, 0.0188398, 0.00753413, 2.04353
+Global system neq 120 Total equations 2619
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00697779, 0.00700608, 0.00087138, 0.00038359, 1.95061
+Global system neq 528 Total equations 13737
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00140215, 0.00140407, 7.66124e-05, 3.37063e-05, 1.98494
+Global system neq 2208 Total equations 62541
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.000319189, 0.000319365, 8.20259e-06, 3.5842e-06, 2.01215
+
+../honeycomb.1.msh Internal order 3 Boundary order 2
+Global system neq 36 Total equations 405
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.006322, 0.00641109, 0.0188398, 0.00389038, 2.04353
+Global system neq 180 Total equations 2763
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00031284, 0.000313777, 0.00087138, 0.000180647, 1.95061
+Global system neq 792 Total equations 14445
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 2.75811e-05, 2.76089e-05, 7.66124e-05, 1.60613e-05, 1.98494
+Global system neq 3312 Total equations 65673
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 2.96534e-06, 2.9666e-06, 8.20259e-06, 1.7327e-06, 2.01215
+
+../honeycomb.1.msh Internal order 4 Boundary order 2
+Global system neq 36 Total equations 567
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00467124, 0.0047144, 0.000866294, 0.000536029, 2.04353
+Global system neq 180 Total equations 3897
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.000227565, 0.000228025, 1.42054e-05, 9.58483e-06, 1.95061
+Global system neq 792 Total equations 20439
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 1.99405e-05, 1.9955e-05, 5.52419e-07, 3.68019e-07, 1.98494
+Global system neq 3312 Total equations 93051
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 2.13685e-06, 2.13755e-06, 2.79997e-08, 1.83885e-08, 2.01215
+
+
+../honeycomb.1.msh Internal order 3 Boundary order 3
+Global system neq 48 Total equations 429
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 0.00174299, 0.0016883, 0.0188398, 0.00384261, 2.04353
+Global system neq 240 Total equations 2907
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 2.71542e-05, 2.64569e-05, 0.00087138, 0.000180192, 1.95061
+Global system neq 1056 Total equations 15153
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 1.04508e-06, 1.01893e-06, 7.66124e-05, 1.60532e-05, 1.98494
+Global system neq 4416 Total equations 68805
+L2_Stress Energy Div_Sigma L2_Disp Exact_energy 
+errors 5.28291e-08, 5.14932e-08, 8.20259e-06, 1.73251e-06, 2.01215

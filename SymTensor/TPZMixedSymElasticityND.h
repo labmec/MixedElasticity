@@ -283,7 +283,7 @@ public:
     void Errors(const TPZVec<TPZMaterialDataT<STATE>> &data, TPZVec<REAL> &errors) override;
     
     std::vector<std::string> ErrorNames() {
-        std::vector<std::string> result = {"L2 Stress", "Energy", "Div Sigma", "Exact energy"};
+        std::vector<std::string> result = {"L2_Stress", "Energy", "Div_Sigma", "L2_Disp", "Exact_energy"};
         return result;
     }
 

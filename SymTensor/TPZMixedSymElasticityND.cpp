@@ -358,6 +358,9 @@ void TPZMixedSymElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>>
         TPZManVector<STATE, 3> res(fDimension);
         TPZFNMatrix<9, STATE> tens(fDimension, fDimension);
         bc.ForcingFunctionBC()(datavec[1].x, res, tens);
+        STATE shear = (tens(0,1)+tens(1,0))/2.;
+        tens(0,1) = shear;
+        tens(1,0) = shear;
         v_2[0] = res[0];
         v_2[1] = res[1];
         if(fDimension == 3) v_2[2] = res[2];
@@ -429,23 +432,6 @@ void TPZMixedSymElasticityND::ContributeBC(const TPZVec<TPZMaterialDataT<STATE>>
 
         case 1: // Neumann condition
         {
-            for (int iq = 0; iq < nshapeS; iq++) {
-                for (int jq = 0; jq < nshapeS; jq++) {
-                    if (fAxisSymmetric) {
-                        ek(2 * iq, 2 * jq) += TPZMaterial::fBigNumber * phiS(iq, 0) * phiS(jq, 0) * weight / R;
-                        ek(2 * iq + 1, 2 * jq + 1) += TPZMaterial::fBigNumber * phiS(iq, 0) * phiS(jq, 0) * weight / R;
-                    } else {
-                        for(int idf = 0; idf < nstate; idf++)
-                        {
-                            ek(nstate * iq + idf, nstate * jq + idf) += TPZMaterial::fBigNumber * phiS(iq, 0) * phiS(jq, 0) * weight;
-                        }
-                    }
-                }
-                for(int idf = 0; idf < nstate; idf++)
-                {
-                    ef(nstate * iq + idf, 0) += TPZMaterial::fBigNumber * v_2[idf] * phiS(iq, 0) * weight; // normal stress in x direction
-                }
-            }
             for (int iq = 0; iq < ndisp; iq++) {
                 for (int idf = 0; idf < nstate; idf++) {
                     ef(nstate * iq + idf, 0) += v_2[idf] * phiD(iq, 0) * weight; // forced v2 displacement
@@ -887,8 +873,8 @@ void TPZMixedSymElasticityND::Errors(const TPZVec<TPZMaterialDataT<STATE>> &data
     TPZFNMatrix<9,STATE> dsol = data[0].dsol[0];
     TPZFNMatrix<9,STATE> dsolxy(3, 3);
     TPZAxesTools<STATE>::Axes2XYZ(dsol, dsolxy, data[0].axes);
-    divSigma[0] = dsolxy(ExxS,0)+dsolxy(ExyS,1);
-    divSigma[1] = dsolxy(ExyS,0)+dsolxy(EyyS,1);
+    divSigma[0] = dsolxy(0,ExxS)+dsolxy(1,ExyS);
+    divSigma[1] = dsolxy(0,ExyS)+dsolxy(1,EyyS);
 
     TPZManVector<STATE, 3> disp(dim);
     for (int i = 0; i < dim; i++) {

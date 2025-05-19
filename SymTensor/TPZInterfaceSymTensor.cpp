@@ -23,7 +23,7 @@ void TPZInterfaceSymTensor::ContributeInterface(const TPZMaterialDataT<TVar> &da
     // we assume dataright is the displacement lagrange multiplier
     TPZManVector<REAL,3> normal(2,0.);
     {
-        auto &axes = rightdata.axes;
+        auto &axes = leftdata.axes;
         if(axes.Rows() != 1) DebugStop();
         normal[0] = axes(0,1);
         normal[1] = -axes(0,0);

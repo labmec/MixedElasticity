@@ -6,7 +6,8 @@ Rectangle(1) = {-1, -1, 0, 2, 2, 0};
 //+
 Physical Surface("domain") = {1};
 //+
-Physical Line("dirichlet") = {1, 2, 3, 4};
+Physical Line("dirichlet") = {4};
+Physical Line("neuman") = {1,2,3};
 //+
 Transfinite Surface {1} = {1, 2, 3, 4} Alternated;
 
