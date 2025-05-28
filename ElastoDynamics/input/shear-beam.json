@@ -11,9 +11,9 @@
 
 	"VTKRes": 0,
 
-	"ShouldCondense": false,
+	"ShouldCondense": true,
 
-    "FiveSpaces": false,
+    "FiveSpaces": true,
 
 	"AnalyticSolution": "loadedbeam",
 
