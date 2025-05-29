@@ -1,0 +1,40 @@
+{	
+	"MeshName": "rigid-body-rotation-3d.msh",
+
+	"Dimension": 3,
+
+	"StressOrder": 1,
+
+	"DispOrder": 0,
+
+	"PlaneStress": 1,
+
+	"VTKRes": 0,
+
+	"ShouldCondense": true,
+
+    "FiveSpaces": true,
+
+	"AnalyticSolution": "rotation",
+
+	"Domains": [ // domain data
+		{
+			"name": "Domain",
+			"matID": 1,
+			"E": 1,
+			"nu": 0.0
+		}
+	],
+
+	"Boundaries":[
+        {
+			"name": "Dirichlet",
+			"matID": 2,
+			"type": 0,
+			"value": [0.0, 0.0, 0.0]
+		}
+	],
+
+	"InterfaceID": 20,
+	"LambdaID": 10
+}

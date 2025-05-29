@@ -25,6 +25,7 @@ const std::unordered_map<std::string, TElasticity2DAnalytic::EDefState> Problems
     {"dispy", TElasticity2DAnalytic::EDispy},
     {"stretchx", TElasticity2DAnalytic::EStretchx},
     {"stretchy", TElasticity2DAnalytic::EStretchy},
+    {"rotation", TElasticity2DAnalytic::ERot},
     {"shear", TElasticity2DAnalytic::EShear},
     {"bend", TElasticity2DAnalytic::EBend},
     {"loadedbeam", TElasticity2DAnalytic::ELoadedBeam},
@@ -33,7 +34,8 @@ const std::unordered_map<std::string, TElasticity2DAnalytic::EDefState> Problems
 };
 
 const std::unordered_map<std::string, TElasticity3DAnalytic::EDefState> ProblemsMap3D = {
-    {"none", TElasticity3DAnalytic::ENone}
+    {"none", TElasticity3DAnalytic::ENone},
+    {"rotation", TElasticity3DAnalytic::ERotXYZ}
 };
 
 const int numthreads = 0;
@@ -47,7 +49,8 @@ int main(int argc, char *argv[]) {
 #endif
 
     ProblemData simData;
-    simData.ReadJson("shear-beam.json");
+    // simData.ReadJson("rigid-body-rotation.json");
+    simData.ReadJson("rigid-body-rotation-3d.json");
 
     const int dim = simData.Dimension;
     REAL E = simData.Domains[0].E;
@@ -138,6 +141,9 @@ int main(int argc, char *argv[]) {
 
     an.Solve();
     std::cout << "Solve finished." << std::endl;
+
+    TPZFMatrix<STATE>& sol = an.Solution();
+    sol.Print("Solution", std::cout, EMathematicaInput);
 
     std::string vtkfile = simData.AnalyticSolution + ".vtk";
 
