@@ -42,6 +42,8 @@ public:
     int StressOrder; // polynomial approximation order for velocity
     
     int DispOrder; // polynomial approximation order for traction
+
+    int SkeletonOrder; // polynomial approximation order for MHM skeleton
     
     int VTKRes;
 

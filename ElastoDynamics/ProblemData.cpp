@@ -42,6 +42,10 @@ void ProblemData::ReadJson(std::string file) {
     if (input.find("DispOrder") == input.end()) DebugStop();
     DispOrder = input["DispOrder"];
 
+    if (input.find("SkeletonOrder") != input.end()) {
+        SkeletonOrder = input["SkeletonOrder"];
+    }
+
     if (input.find("PlaneStress") == input.end()) DebugStop();
     PlaneStress = input["PlaneStress"];
 

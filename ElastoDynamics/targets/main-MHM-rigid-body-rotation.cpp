@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <TPZHDivApproxCreator.h>
+#include <TPZMHMHDivApproxCreator.h>
 #include <pzgmesh.h>
 #include <TPZMultiphysicsCompMesh.h>
 #include <Material/Elasticity/TPZMixedElasticityND.h>
@@ -49,8 +50,8 @@ int main(int argc, char *argv[]) {
 #endif
 
     ProblemData simData;
-    // simData.ReadJson("rigid-body-rotation.json");
-    simData.ReadJson("rigid-body-rotation-3d.json");
+    simData.ReadJson("MHM-rigid-body-rotation.json");
+    //simData.ReadJson("MHM-rigid-body-rotation-3d.json");
 
     const int dim = simData.Dimension;
     REAL E = simData.Domains[0].E;
@@ -91,8 +92,9 @@ int main(int argc, char *argv[]) {
 
     TPZGeoMesh *gmesh = ReadMeshFromGmsh(simData.MeshName, simData);
 
-    TPZHDivApproxCreator approx(gmesh);
+    TPZMHMHDivApproxCreator approx(gmesh);
     approx.ProbType() = ProblemType::EElastic;
+    approx.SetPOrderSkeleton(simData.SkeletonOrder);
     approx.SetDefaultOrder(simData.StressOrder);
     approx.SetExtraInternalOrder(0);
     approx.HdivFamily() = HDivFamily::EHDivStandard;
